@@ -1,14 +1,15 @@
 package tarantool_migrator
 
 import (
+	"context"
 	"github.com/tarantool/go-tarantool/v2/pool"
 )
 
 // MigrateFunc is the func signature for migrating.
-type MigrateFunc func(*pool.ConnectionPool, *Options) error
+type MigrateFunc func(*pool.ConnectionPool, context.Context, *Options) error
 
 // RollbackFunc is the func signature for rollback.
-type RollbackFunc func(*pool.ConnectionPool, *Options) error
+type RollbackFunc func(*pool.ConnectionPool, context.Context, *Options) error
 
 // Migration represents a database migration (a modification to be made on the database).
 type Migration struct {

@@ -7,7 +7,6 @@ type Options struct {
 	Instances []string
 
 	UseTransaction bool
-	WithoutConfirm bool
 }
 
 var DefaultOptions = &Options{
