@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/tarantool/go-tarantool/v2"
 	"github.com/tarantool/go-tarantool/v2/pool"
+	"strings"
 	"time"
 )
 
@@ -36,27 +37,18 @@ func (e *Executor) hasMigrationsSpace(ctx context.Context) (bool, error) {
 }
 
 func (e *Executor) initMigrationsSpace(ctx context.Context) error {
-	createSpaceQuery := fmt.Sprintf("box.schema.space.create('%s');", e.opts.SpaceName)
-	_, err := e.tt.Do(tarantool.NewEvalRequest(createSpaceQuery).Context(ctx), pool.ANY).Get()
-	if err != nil {
-		return err
-	}
+	migrationSpaceRequest := `
+box.schema.space.create('{migrations_space}');
 
-	formatSpaceQuery := fmt.Sprintf(`
-box.space.%s:format({
+box.space.{migrations_space}:format({
     {'id',type='string'},
     {'executed_at',type='string'},
 })
-`, e.opts.SpaceName)
-	_, err = e.tt.Do(tarantool.NewEvalRequest(formatSpaceQuery).Context(ctx), pool.ANY).Get()
-	if err != nil {
-		return err
-	}
 
-	addIndexesQuery := fmt.Sprintf(`
-box.space.%s:create_index('id', {parts = {'id'}, unique = true})
-`, e.opts.SpaceName)
-	_, err = e.tt.Do(tarantool.NewEvalRequest(addIndexesQuery).Context(ctx), pool.ANY).Get()
+box.space.{migrations_space}:create_index('id', {parts = {'id'}, unique = true})
+`
+	migrationSpaceRequest = strings.ReplaceAll(migrationSpaceRequest, "{migrations_space}", e.opts.SpaceName)
+	_, err := e.tt.Do(tarantool.NewEvalRequest(migrationSpaceRequest).Context(ctx), pool.ANY).Get()
 	if err != nil {
 		return err
 	}
