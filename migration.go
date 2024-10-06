@@ -6,10 +6,10 @@ import (
 )
 
 // MigrateFunc is the func signature for migrating.
-type MigrateFunc func(*pool.ConnectionPool, context.Context, *Options) error
+type MigrateFunc func(pool.Pooler, context.Context, *Options) error
 
 // RollbackFunc is the func signature for rollback.
-type RollbackFunc func(*pool.ConnectionPool, context.Context, *Options) error
+type RollbackFunc func(pool.Pooler, context.Context, *Options) error
 
 // Migration represents a database migration (a modification to be made on the database).
 type Migration struct {

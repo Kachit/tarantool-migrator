@@ -5,7 +5,7 @@ import (
 	"github.com/tarantool/go-tarantool/v2/pool"
 )
 
-func NewMigrator(tt *pool.ConnectionPool, migrations Migrations, options *Options) *Migrator {
+func NewMigrator(tt pool.Pooler, migrations Migrations, options *Options) *Migrator {
 	if options == nil {
 		options = DefaultOptions
 	}
