@@ -23,17 +23,14 @@ func newExecutor(tt pool.Pooler, options *Options) *Executor {
 	return &Executor{tt: tt, opts: options}
 }
 
-func (e *Executor) initMigrationsSpace(ctx context.Context) error {
-	migrationSpaceRequest := `
-box.schema.create_space('{migrations_space}', { if_not_exists = true, format={
-    {'id',type='string'},
-    {'executed_at',type='string'},
-}})
-
-box.space.{migrations_space}:create_index('id', {parts = {'id'}, if_not_exists = true, unique = true})
-`
-	migrationSpaceRequest = strings.ReplaceAll(migrationSpaceRequest, "{migrations_space}", e.opts.SpaceName)
-	_, err := e.tt.Do(tarantool.NewEvalRequest(migrationSpaceRequest).Context(ctx), e.opts.WriteMode).Get()
+func (e *Executor) createMigrationsSpaceIfNotExists(ctx context.Context) error {
+	data, err := LuaFs.ReadFile("lua/migrations/create_migrations_space.up.lua")
+	if err != nil {
+		return err
+	}
+	migrationSpaceRequest := string(data)
+	migrationSpaceRequest = strings.ReplaceAll(migrationSpaceRequest, "_migrations_space_", e.opts.MigrationsSpace)
+	_, err = e.tt.Do(tarantool.NewEvalRequest(migrationSpaceRequest).Context(ctx), e.opts.WriteMode).Get()
 	if err != nil {
 		return err
 	}
@@ -42,7 +39,7 @@ box.space.{migrations_space}:create_index('id', {parts = {'id'}, if_not_exists =
 
 func (e *Executor) hasConfirmedMigration(ctx context.Context, migrationID string) (bool, error) {
 	var tuples []migrationTuple
-	err := e.tt.Do(tarantool.NewSelectRequest(e.opts.SpaceName).Context(ctx).Key([]any{migrationID}), e.opts.ReadMode).GetTyped(&tuples)
+	err := e.tt.Do(tarantool.NewSelectRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID}), e.opts.ReadMode).GetTyped(&tuples)
 	if err != nil {
 		return false, err
 	}
@@ -50,7 +47,7 @@ func (e *Executor) hasConfirmedMigration(ctx context.Context, migrationID string
 }
 
 func (e *Executor) confirmMigration(ctx context.Context, migrationID string) error {
-	_, err := e.tt.Do(tarantool.NewReplaceRequest(e.opts.SpaceName).Context(ctx).Tuple([]interface{}{
+	_, err := e.tt.Do(tarantool.NewReplaceRequest(e.opts.MigrationsSpace).Context(ctx).Tuple([]interface{}{
 		migrationID,
 		time.Now().UTC().String(),
 	}),
@@ -63,7 +60,7 @@ func (e *Executor) confirmMigration(ctx context.Context, migrationID string) err
 }
 
 func (e *Executor) rejectMigration(ctx context.Context, migrationID string) error {
-	_, err := e.tt.Do(tarantool.NewDeleteRequest(e.opts.SpaceName).Context(ctx).Key([]any{migrationID}), e.opts.WriteMode).Get()
+	_, err := e.tt.Do(tarantool.NewDeleteRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID}), e.opts.WriteMode).Get()
 	if err != nil {
 		return err
 	}
@@ -72,7 +69,7 @@ func (e *Executor) rejectMigration(ctx context.Context, migrationID string) erro
 
 func (e *Executor) findLastConfirmedMigration(ctx context.Context) (*migrationTuple, error) {
 	var tuples []migrationTuple
-	expr := fmt.Sprintf("return box.space.%s.index.id:max()", e.opts.SpaceName)
+	expr := strings.ReplaceAll("return box.space._migrations_space_.index.id:max()", "_migrations_space_", e.opts.MigrationsSpace)
 	err := e.tt.Do(tarantool.NewEvalRequest(expr).Context(ctx), e.opts.ReadMode).GetTyped(&tuples)
 	if err != nil {
 		return nil, err

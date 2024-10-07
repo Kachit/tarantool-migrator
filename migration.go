@@ -2,6 +2,7 @@ package tarantool_migrator
 
 import (
 	"context"
+	"github.com/tarantool/go-tarantool/v2"
 	"github.com/tarantool/go-tarantool/v2/pool"
 )
 
@@ -39,4 +40,14 @@ func (mg *Migration) isValidForRollback() error {
 		return ErrMissingRollbackFunc
 	}
 	return nil
+}
+
+func NewGenericMigrateFunction(req string) func(pool.Pooler, context.Context, *Options) error {
+	return func(tt pool.Pooler, ctx context.Context, opts *Options) error {
+		_, err := tt.Do(tarantool.NewEvalRequest(req).Context(ctx), opts.WriteMode).Get()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 }

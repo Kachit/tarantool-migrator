@@ -20,6 +20,26 @@ type Migrator struct {
 }
 
 func (m *Migrator) Migrate(ctx context.Context) error {
+	if m.migrations.IsEmpty() {
+		return ErrNoMigrationsDefined
+	}
+	err := m.ex.createMigrationsSpaceIfNotExists(ctx)
+	if err != nil {
+		return err
+	}
+	for _, mgr := range m.migrations {
+		err = mgr.isValidForMigrate()
+		if err != nil {
+			return err
+		}
+		exists, err := m.ex.hasConfirmedMigration(ctx, mgr.ID)
+		if err != nil {
+			return err
+		}
+		if !exists {
+
+		}
+	}
 	return nil
 }
 

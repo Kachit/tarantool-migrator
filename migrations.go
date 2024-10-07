@@ -1,6 +1,6 @@
 package tarantool_migrator
 
-type Migrations []*Migration
+type Migrations map[string]*Migration
 
 func (m *Migrations) IsEmpty() bool {
 	return len(*m) == 0
