@@ -9,12 +9,14 @@ type Options struct {
 	Instances       []string
 
 	TransactionEnabled bool
+	LogLevel           LogLevel
 	ReadMode           pool.Mode
 	WriteMode          pool.Mode
 }
 
 var DefaultOptions = &Options{
 	MigrationsSpace: "migrations",
+	LogLevel:        LogLevelInfo,
 	ReadMode:        pool.ANY,
 	WriteMode:       pool.RW,
 }
