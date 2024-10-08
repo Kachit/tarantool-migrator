@@ -67,6 +67,14 @@ func (e *Executor) rejectMigration(ctx context.Context, migrationID string) erro
 	return nil
 }
 
+func (e *Executor) applyMigration(ctx context.Context, migration *Migration) error {
+	return migration.Migrate(ctx, e.tt, e.opts)
+}
+
+func (e *Executor) rollbackMigration(ctx context.Context, migration *Migration) error {
+	return migration.Rollback(ctx, e.tt, e.opts)
+}
+
 func (e *Executor) findLastConfirmedMigration(ctx context.Context) (*migrationTuple, error) {
 	var tuples []migrationTuple
 	expr := strings.ReplaceAll("return box.space._migrations_space_.index.id:max()", "_migrations_space_", e.opts.MigrationsSpace)

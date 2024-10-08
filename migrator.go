@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func NewMigrator(tt pool.Pooler, migrations Migrations, options *Options) *Migrator {
+func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options *Options) *Migrator {
 	if options == nil {
 		options = DefaultOptions
 	}
@@ -29,7 +29,7 @@ type Migrator struct {
 	ex         *Executor
 	opts       *Options
 	logger     Logger
-	migrations Migrations
+	migrations MigrationsCollection
 }
 
 func (m *Migrator) Migrate(ctx context.Context) error {
@@ -40,28 +40,54 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, mgr := range m.migrations {
-		m.logger.Info(ctx, fmt.Sprintf(`migration "%s" process started`, mgr.ID))
-		err = mgr.isValidForMigrate()
+	for _, migration := range m.migrations {
+		m.logger.Info(ctx, fmt.Sprintf(`migration "%s" process started`, migration.ID))
+		err = migration.isValidForMigrate()
 		if err != nil {
 			return err
 		}
-		exists, err := m.ex.hasConfirmedMigration(ctx, mgr.ID)
+		exists, err := m.ex.hasConfirmedMigration(ctx, migration.ID)
 		if err != nil {
 			return err
 		}
 		if !exists {
 			startedAt := time.Now().UTC()
-			//migration process
+			err = m.ex.applyMigration(ctx, migration)
+			if err != nil {
+				return err
+			}
 			migratedAt := time.Now().UTC().Sub(startedAt)
-			m.logger.Info(ctx, fmt.Sprintf(`migration "%s" successfully migrated in %.3fms`, mgr.ID, float64(migratedAt.Nanoseconds())/1e6))
+			m.logger.Info(ctx, fmt.Sprintf(`migration "%s" successfully migrated in %.3fms`, migration.ID, float64(migratedAt.Nanoseconds())/1e6))
 		} else {
-			m.logger.Info(ctx, fmt.Sprintf(`migration "%s" is already migrated`, mgr.ID))
+			m.logger.Info(ctx, fmt.Sprintf(`migration "%s" is already migrated`, migration.ID))
 		}
 	}
 	return nil
 }
 
 func (m *Migrator) RollbackLast(ctx context.Context) error {
+	if m.migrations.IsEmpty() {
+		return ErrNoMigrationsDefined
+	}
+	mgr, err := m.ex.findLastConfirmedMigration(ctx)
+	if err != nil {
+		return err
+	}
+	m.logger.Info(ctx, fmt.Sprintf(`migration "%s" found for rollback`, mgr.ID))
+	migration, err := m.migrations.Find(mgr.ID)
+	if err != nil {
+		return err
+	}
+	err = migration.isValidForRollback()
+	if err != nil {
+		return err
+	}
+	startedAt := time.Now().UTC()
+	err = m.ex.rollbackMigration(ctx, migration)
+	if err != nil {
+		return err
+	}
+	rolledAt := time.Now().UTC().Sub(startedAt)
+	m.logger.Info(ctx, fmt.Sprintf(`migration "%s" successfully rollbacked in %.3fms`, mgr.ID, float64(rolledAt.Nanoseconds())/1e6))
 	return nil
 }

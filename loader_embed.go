@@ -12,13 +12,13 @@ type EmbedFsLoader struct {
 	fs embed.FS
 }
 
-func (fl *EmbedFsLoader) Load(path string) (Migrations, error) {
+func (fl *EmbedFsLoader) Load(path string) (MigrationsCollection, error) {
 	files, err := fl.fs.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
 
-	coll := make(Migrations)
+	coll := make(MigrationsCollection)
 	for _, file := range files {
 		mgrParts := strings.Split(file.Name(), ".")
 		if len(mgrParts) < 3 {
