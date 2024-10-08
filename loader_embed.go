@@ -12,7 +12,7 @@ type EmbedFsLoader struct {
 	fs embed.FS
 }
 
-func (fl *EmbedFsLoader) Load(path string) (MigrationsCollection, error) {
+func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, error) {
 	files, err := fl.fs.ReadDir(path)
 	if err != nil {
 		return nil, err

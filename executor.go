@@ -46,8 +46,8 @@ func (e *Executor) hasConfirmedMigration(ctx context.Context, migrationID string
 	return len(tuples) > 0, nil
 }
 
-func (e *Executor) confirmMigration(ctx context.Context, migrationID string) error {
-	_, err := e.tt.Do(tarantool.NewReplaceRequest(e.opts.MigrationsSpace).Context(ctx).Tuple([]interface{}{
+func (e *Executor) insertMigration(ctx context.Context, migrationID string) error {
+	_, err := e.tt.Do(tarantool.NewInsertRequest(e.opts.MigrationsSpace).Context(ctx).Tuple([]interface{}{
 		migrationID,
 		time.Now().UTC().String(),
 	}),
@@ -59,7 +59,7 @@ func (e *Executor) confirmMigration(ctx context.Context, migrationID string) err
 	return nil
 }
 
-func (e *Executor) rejectMigration(ctx context.Context, migrationID string) error {
+func (e *Executor) deleteMigration(ctx context.Context, migrationID string) error {
 	_, err := e.tt.Do(tarantool.NewDeleteRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID}), e.opts.WriteMode).Get()
 	if err != nil {
 		return err
@@ -68,11 +68,19 @@ func (e *Executor) rejectMigration(ctx context.Context, migrationID string) erro
 }
 
 func (e *Executor) applyMigration(ctx context.Context, migration *Migration) error {
-	return migration.Migrate(ctx, e.tt, e.opts)
+	err := migration.Migrate(ctx, e.tt, e.opts)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (e *Executor) rollbackMigration(ctx context.Context, migration *Migration) error {
-	return migration.Rollback(ctx, e.tt, e.opts)
+	err := migration.Rollback(ctx, e.tt, e.opts)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (e *Executor) findLastConfirmedMigration(ctx context.Context) (*migrationTuple, error) {
