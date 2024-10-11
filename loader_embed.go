@@ -5,9 +5,6 @@ import (
 	"strings"
 )
 
-const MigrationFileSuffixUp = "up"
-const MigrationFileSuffixDown = "down"
-
 type EmbedFsLoader struct {
 	fs embed.FS
 }

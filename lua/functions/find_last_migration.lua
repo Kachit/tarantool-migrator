@@ -1,0 +1,1 @@
+return box.space._migrations_space_.index.id:max()

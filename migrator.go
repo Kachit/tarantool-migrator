@@ -7,23 +7,16 @@ import (
 	"time"
 )
 
-const createMigrationsSpacePath = "lua/migrations/create_migrations_space.up.lua"
-
-func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options *Options) *Migrator {
-	if options == nil {
-		options = DefaultOptions
-	}
-	ex := newExecutor(tt, options)
-	return &Migrator{
-		ex:         ex,
-		logger:     DefaultLogger.SetLogLevel(options.LogLevel),
+func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options ...func(*Migrator)) *Migrator {
+	m := &Migrator{
+		logger:     DefaultLogger,
 		migrations: migrations,
-		opts:       options,
+		opts:       DefaultOptions,
 	}
-}
-
-func (m *Migrator) SetLogger(lg Logger) *Migrator {
-	m.logger = lg
+	for _, opt := range options {
+		opt(m)
+	}
+	m.ex = newExecutor(tt, m.opts)
 	return m
 }
 
@@ -36,7 +29,7 @@ type Migrator struct {
 
 func (m *Migrator) Migrate(ctx context.Context) error {
 	if m.migrations.IsEmpty() {
-		return ErrNoMigrationsDefined
+		return ErrNoDefinedMigrations
 	}
 	err := m.ex.createMigrationsSpaceIfNotExists(ctx, createMigrationsSpacePath)
 	if err != nil {
@@ -69,7 +62,7 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 
 func (m *Migrator) RollbackLast(ctx context.Context) error {
 	if m.migrations.IsEmpty() {
-		return ErrNoMigrationsDefined
+		return ErrNoDefinedMigrations
 	}
 	mgr, err := m.ex.findLastAppliedMigration(ctx)
 	if err != nil {

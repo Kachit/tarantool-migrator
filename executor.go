@@ -8,11 +8,6 @@ import (
 	"time"
 )
 
-type migrationTuple struct {
-	ID         string
-	ExecutedAt string
-}
-
 type Executor struct {
 	tt   pool.Pooler
 	opts *Options
@@ -98,7 +93,7 @@ func (e *Executor) findLastAppliedMigration(ctx context.Context) (*migrationTupl
 		return nil, err
 	}
 	if len(tuples) == 0 {
-		return nil, ErrNoMigrationsApplied
+		return nil, ErrNoAppliedMigrations
 	}
 	return &tuples[0], nil
 }
