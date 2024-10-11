@@ -20,6 +20,9 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 
 	coll := make(MigrationsCollection)
 	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
 		mgrParts := strings.Split(file.Name(), ".")
 		if len(mgrParts) < 3 {
 			return nil, ErrWrongMigrationFileFormat
