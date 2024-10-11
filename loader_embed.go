@@ -27,6 +27,7 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 		if len(mgrParts) < 3 {
 			return nil, ErrWrongMigrationFileFormat
 		}
+
 		if mgrParts[1] != MigrationFileSuffixUp && mgrParts[1] != MigrationFileSuffixDown {
 			return nil, ErrWrongMigrationCmdFormat
 		}
@@ -37,16 +38,16 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 				ID: mgrParts[0],
 			}
 			coll[mgrParts[0]] = migration
+		}
+
+		fileData, err := fl.fs.ReadFile(path + "/" + file.Name())
+		if err != nil {
+			return nil, err
+		}
+		if mgrParts[1] == MigrationFileSuffixUp {
+			migration.Migrate = NewGenericMigrateFunction(string(fileData))
 		} else {
-			fileData, err := fl.fs.ReadFile(path + "/" + file.Name())
-			if err != nil {
-				return nil, err
-			}
-			if mgrParts[1] == MigrationFileSuffixUp {
-				migration.Migrate = NewGenericMigrateFunction(string(fileData))
-			} else {
-				migration.Rollback = NewGenericMigrateFunction(string(fileData))
-			}
+			migration.Rollback = NewGenericMigrateFunction(string(fileData))
 		}
 	}
 	return coll, nil

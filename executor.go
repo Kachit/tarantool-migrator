@@ -2,7 +2,6 @@ package tarantool_migrator
 
 import (
 	"context"
-	"fmt"
 	"github.com/tarantool/go-tarantool/v2"
 	"github.com/tarantool/go-tarantool/v2/pool"
 	"strings"
@@ -23,8 +22,8 @@ func newExecutor(tt pool.Pooler, options *Options) *Executor {
 	return &Executor{tt: tt, opts: options}
 }
 
-func (e *Executor) createMigrationsSpaceIfNotExists(ctx context.Context) error {
-	data, err := LuaFs.ReadFile("lua/migrations/create_migrations_space.up.lua")
+func (e *Executor) createMigrationsSpaceIfNotExists(ctx context.Context, path string) error {
+	data, err := LuaFs.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -37,7 +36,7 @@ func (e *Executor) createMigrationsSpaceIfNotExists(ctx context.Context) error {
 	return nil
 }
 
-func (e *Executor) hasConfirmedMigration(ctx context.Context, migrationID string) (bool, error) {
+func (e *Executor) hasAppliedMigration(ctx context.Context, migrationID string) (bool, error) {
 	var tuples []migrationTuple
 	err := e.tt.Do(tarantool.NewSelectRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID}), e.opts.ReadMode).GetTyped(&tuples)
 	if err != nil {
@@ -72,6 +71,10 @@ func (e *Executor) applyMigration(ctx context.Context, migration *Migration) err
 	if err != nil {
 		return err
 	}
+	err = e.insertMigration(ctx, migration.ID)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -80,10 +83,14 @@ func (e *Executor) rollbackMigration(ctx context.Context, migration *Migration) 
 	if err != nil {
 		return err
 	}
+	err = e.deleteMigration(ctx, migration.ID)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (e *Executor) findLastConfirmedMigration(ctx context.Context) (*migrationTuple, error) {
+func (e *Executor) findLastAppliedMigration(ctx context.Context) (*migrationTuple, error) {
 	var tuples []migrationTuple
 	expr := strings.ReplaceAll("return box.space._migrations_space_.index.id:max()", "_migrations_space_", e.opts.MigrationsSpace)
 	err := e.tt.Do(tarantool.NewEvalRequest(expr).Context(ctx), e.opts.ReadMode).GetTyped(&tuples)
@@ -91,7 +98,7 @@ func (e *Executor) findLastConfirmedMigration(ctx context.Context) (*migrationTu
 		return nil, err
 	}
 	if len(tuples) == 0 {
-		return nil, fmt.Errorf("no confirmed migrations")
+		return nil, ErrNoMigrationsApplied
 	}
 	return &tuples[0], nil
 }

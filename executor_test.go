@@ -41,14 +41,14 @@ func (suite *ExecutorTestSuite) SetupTest() {
 	suite.testable = newExecutor(suite.mock, DefaultOptions)
 }
 
-func (suite *ExecutorTestSuite) TestHasConfirmedMigrationFound() {
+func (suite *ExecutorTestSuite) TestHasAppliedMigrationFound() {
 	mockDoer := test_helpers.NewMockDoer(suite.T(),
 		suite.tupleResponse,
 	)
 	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
 		return mockDoer.Do(req)
 	}
-	found, err := suite.testable.hasConfirmedMigration(suite.ctx, "qwerty")
+	found, err := suite.testable.hasAppliedMigration(suite.ctx, "qwerty")
 
 	calls := suite.mock.DoCalls()
 	assert.NoError(suite.T(), err)
@@ -68,14 +68,14 @@ func (suite *ExecutorTestSuite) TestHasConfirmedMigrationFound() {
 	assert.True(suite.T(), indexField.IsNil())
 }
 
-func (suite *ExecutorTestSuite) TestHasConfirmedMigrationNotFound() {
+func (suite *ExecutorTestSuite) TestHasAppliedMigrationNotFound() {
 	mockDoer := test_helpers.NewMockDoer(suite.T(),
 		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
 	)
 	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
 		return mockDoer.Do(req)
 	}
-	found, err := suite.testable.hasConfirmedMigration(suite.ctx, "qwerty")
+	found, err := suite.testable.hasAppliedMigration(suite.ctx, "qwerty")
 
 	calls := suite.mock.DoCalls()
 	assert.NoError(suite.T(), err)
@@ -95,14 +95,14 @@ func (suite *ExecutorTestSuite) TestHasConfirmedMigrationNotFound() {
 	assert.True(suite.T(), indexField.IsNil())
 }
 
-func (suite *ExecutorTestSuite) TestHasConfirmedMigrationError() {
+func (suite *ExecutorTestSuite) TestHasAppliedMigrationError() {
 	mockDoer := test_helpers.NewMockDoer(suite.T(),
 		fmt.Errorf("tarantool error"),
 	)
 	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
 		return mockDoer.Do(req)
 	}
-	found, err := suite.testable.hasConfirmedMigration(suite.ctx, "qwerty")
+	found, err := suite.testable.hasAppliedMigration(suite.ctx, "qwerty")
 
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
@@ -123,14 +123,14 @@ func (suite *ExecutorTestSuite) TestHasConfirmedMigrationError() {
 	assert.True(suite.T(), indexField.IsNil())
 }
 
-func (suite *ExecutorTestSuite) TestFindLastConfirmedMigrationFound() {
+func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationFound() {
 	mockDoer := test_helpers.NewMockDoer(suite.T(),
 		suite.tupleResponse,
 	)
 	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
 		return mockDoer.Do(req)
 	}
-	result, err := suite.testable.findLastConfirmedMigration(suite.ctx)
+	result, err := suite.testable.findLastAppliedMigration(suite.ctx)
 
 	calls := suite.mock.DoCalls()
 	assert.NoError(suite.T(), err)
@@ -148,18 +148,18 @@ func (suite *ExecutorTestSuite) TestFindLastConfirmedMigrationFound() {
 	assert.Equal(suite.T(), "[]", fmt.Sprintf("%v", argsField))
 }
 
-func (suite *ExecutorTestSuite) TestFindLastConfirmedMigrationNotFound() {
+func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationNotFound() {
 	mockDoer := test_helpers.NewMockDoer(suite.T(),
 		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
 	)
 	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
 		return mockDoer.Do(req)
 	}
-	result, err := suite.testable.findLastConfirmedMigration(suite.ctx)
+	result, err := suite.testable.findLastAppliedMigration(suite.ctx)
 
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), "no confirmed migrations", err.Error())
+	assert.Equal(suite.T(), "no applied migrations", err.Error())
 	assert.Empty(suite.T(), result)
 	assert.Len(suite.T(), calls, 1)
 	assert.Equal(suite.T(), pool.ANY, calls[0].Mode)
@@ -174,14 +174,14 @@ func (suite *ExecutorTestSuite) TestFindLastConfirmedMigrationNotFound() {
 	assert.Equal(suite.T(), "[]", fmt.Sprintf("%v", argsField))
 }
 
-func (suite *ExecutorTestSuite) TestFindLastConfirmedMigrationError() {
+func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationError() {
 	mockDoer := test_helpers.NewMockDoer(suite.T(),
 		fmt.Errorf("tarantool error"),
 	)
 	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
 		return mockDoer.Do(req)
 	}
-	result, err := suite.testable.findLastConfirmedMigration(suite.ctx)
+	result, err := suite.testable.findLastAppliedMigration(suite.ctx)
 
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
@@ -207,7 +207,7 @@ func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsSuccess() {
 	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
 		return mockDoer.Do(req)
 	}
-	err := suite.testable.createMigrationsSpaceIfNotExists(suite.ctx)
+	err := suite.testable.createMigrationsSpaceIfNotExists(suite.ctx, createMigrationsSpacePath)
 
 	data, _ := LuaFs.ReadFile("lua/migrations/create_migrations_space.up.lua")
 	migrationSpaceRequest := string(data)
@@ -228,6 +228,14 @@ func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsSuccess() {
 	assert.Equal(suite.T(), "[]", fmt.Sprintf("%v", argsField))
 }
 
+func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsWrongMigrationsPathError() {
+	err := suite.testable.createMigrationsSpaceIfNotExists(suite.ctx, "lua/migrations/create_migrations_space.up.dua")
+	calls := suite.mock.DoCalls()
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "open lua/migrations/create_migrations_space.up.dua: file does not exist", err.Error())
+	assert.Len(suite.T(), calls, 0)
+}
+
 func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsError() {
 	mockDoer := test_helpers.NewMockDoer(suite.T(),
 		fmt.Errorf("tarantool error"),
@@ -235,7 +243,7 @@ func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsError() {
 	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
 		return mockDoer.Do(req)
 	}
-	err := suite.testable.createMigrationsSpaceIfNotExists(suite.ctx)
+	err := suite.testable.createMigrationsSpaceIfNotExists(suite.ctx, createMigrationsSpacePath)
 
 	data, _ := LuaFs.ReadFile("lua/migrations/create_migrations_space.up.lua")
 	migrationSpaceRequest := string(data)
@@ -349,6 +357,28 @@ func (suite *ExecutorTestSuite) TestDeleteMigrationError() {
 	assert.Equal(suite.T(), "migrations", fmt.Sprintf("%v", spaceField))
 	keyField := reqRef.FieldByName("key")
 	assert.Equal(suite.T(), "[qwerty]", fmt.Sprintf("%v", keyField))
+}
+
+func (suite *ExecutorTestSuite) TestNewGenericMigrateFunction() {
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+	mgrFunc := NewGenericMigrateFunction("box.info")
+	err := mgrFunc(suite.ctx, suite.mock, DefaultOptions)
+	calls := suite.mock.DoCalls()
+	assert.NoError(suite.T(), err)
+	assert.Len(suite.T(), calls, 1)
+	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+
+	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	req := reqRef.Interface().(tarantool.EvalRequest)
+	assert.IsType(suite.T(), tarantool.EvalRequest{}, req)
+	assert.Equal(suite.T(), iproto.IPROTO_EVAL, req.Type())
+	exprField := reqRef.FieldByName("expr")
+	assert.Equal(suite.T(), "box.info", exprField.String())
 }
 
 func TestExecutorTestSuite(t *testing.T) {

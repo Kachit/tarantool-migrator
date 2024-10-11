@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const createMigrationsSpacePath = "lua/migrations/create_migrations_space.up.lua"
+
 func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options *Options) *Migrator {
 	if options == nil {
 		options = DefaultOptions
@@ -36,7 +38,7 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 	if m.migrations.IsEmpty() {
 		return ErrNoMigrationsDefined
 	}
-	err := m.ex.createMigrationsSpaceIfNotExists(ctx)
+	err := m.ex.createMigrationsSpaceIfNotExists(ctx, createMigrationsSpacePath)
 	if err != nil {
 		return err
 	}
@@ -46,7 +48,7 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		exists, err := m.ex.hasConfirmedMigration(ctx, migration.ID)
+		exists, err := m.ex.hasAppliedMigration(ctx, migration.ID)
 		if err != nil {
 			return err
 		}
@@ -69,7 +71,7 @@ func (m *Migrator) RollbackLast(ctx context.Context) error {
 	if m.migrations.IsEmpty() {
 		return ErrNoMigrationsDefined
 	}
-	mgr, err := m.ex.findLastConfirmedMigration(ctx)
+	mgr, err := m.ex.findLastAppliedMigration(ctx)
 	if err != nil {
 		return err
 	}
