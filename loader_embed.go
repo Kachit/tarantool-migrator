@@ -15,39 +15,41 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 		return nil, err
 	}
 
-	coll := make(MigrationsCollection)
+	var migrations MigrationsCollection
+	coll := make(map[string]*Migration)
 	for _, file := range files {
-		if file.IsDir() {
+		if file.IsDir() || strings.HasPrefix(file.Name(), "--") {
 			continue
 		}
-		mgrParts := strings.Split(file.Name(), ".")
-		if len(mgrParts) < 3 {
-			return nil, ErrWrongMigrationFileFormat
-		}
-
-		if mgrParts[1] != MigrationFileSuffixUp && mgrParts[1] != MigrationFileSuffixDown {
-			return nil, ErrWrongMigrationCmdFormat
-		}
-		var migration *Migration
-		migration, ok := coll[mgrParts[0]]
-		if !ok {
-			migration = &Migration{
-				ID: mgrParts[0],
-			}
-			coll[mgrParts[0]] = migration
-		}
-
-		fileData, err := fl.fs.ReadFile(path + "/" + file.Name())
+		mgrFile, err := NewMigrationFile(path, file)
 		if err != nil {
 			return nil, err
 		}
-		if mgrParts[1] == MigrationFileSuffixUp {
+		var migration *Migration
+		migration, ok := coll[mgrFile.GetName()]
+		if !ok {
+			migration = &Migration{
+				ID: mgrFile.GetName(),
+			}
+			coll[mgrFile.GetName()] = migration
+		}
+
+		fileData, err := fl.fs.ReadFile(mgrFile.GetPath())
+		if err != nil {
+			return nil, err
+		}
+		if mgrFile.GetCmd() == MigrationFileSuffixUp {
 			migration.Migrate = NewGenericMigrateFunction(string(fileData))
 		} else {
 			migration.Rollback = NewGenericMigrateFunction(string(fileData))
 		}
 	}
-	return coll, nil
+
+	for _, migration := range coll {
+		migrations = append(migrations, migration)
+	}
+	migrations.sort()
+	return migrations, nil
 }
 
 func NewEmbedFsLoader(fs embed.FS) *EmbedFsLoader {

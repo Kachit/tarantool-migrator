@@ -1,0 +1,1 @@
+box.schema.create_space('test-3')

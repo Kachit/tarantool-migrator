@@ -47,8 +47,8 @@ func (suite *EmbedFsLoaderTestSuite) TestLoadMigrationsValid() {
 	assert.NotEmpty(suite.T(), result)
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), result, 2)
-	assert.Contains(suite.T(), result, "202410082345_test_migration_1")
-	assert.Contains(suite.T(), result, "202410091201_test_migration_2")
+	assert.Equal(suite.T(), result[0].ID, "202410082345_test_migration_1")
+	assert.Equal(suite.T(), result[1].ID, "202410091201_test_migration_2")
 }
 
 func TestEmbedFsLoaderTestSuite(t *testing.T) {

@@ -1,15 +1,11 @@
 package tarantool_migrator
 
-type MigrationsCollection map[string]*Migration
+import "sort"
+
+type MigrationsCollection []*Migration
 
 func (m *MigrationsCollection) IsEmpty() bool {
 	return len(*m) == 0
-}
-
-func (m *MigrationsCollection) Add(migration *Migration) *MigrationsCollection {
-	mm := *m
-	mm[migration.ID] = migration
-	return m
 }
 
 func (m *MigrationsCollection) Find(migrationID string) (*Migration, error) {
@@ -19,4 +15,11 @@ func (m *MigrationsCollection) Find(migrationID string) (*Migration, error) {
 		}
 	}
 	return nil, ErrMigrationIDDoesNotExist
+}
+
+func (m *MigrationsCollection) sort() {
+	mm := *m
+	sort.Slice(mm, func(i, j int) bool {
+		return mm[i].ID < mm[j].ID
+	})
 }
