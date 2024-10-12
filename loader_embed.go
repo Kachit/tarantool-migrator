@@ -15,10 +15,10 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 		return nil, err
 	}
 
-	var migrations MigrationsCollection
+	migrations := make(MigrationsCollection, 0)
 	coll := make(map[string]*Migration)
 	for _, file := range files {
-		if file.IsDir() || strings.HasPrefix(file.Name(), "--") {
+		if file.IsDir() || strings.HasPrefix(file.Name(), MigrationFilePrefixExcluded) {
 			continue
 		}
 		mgrFile, err := NewMigrationFile(path, file)

@@ -7,6 +7,7 @@ import (
 
 const MigrationFileSuffixUp = "up"
 const MigrationFileSuffixDown = "down"
+const MigrationFilePrefixExcluded = "--"
 
 type MigrationFile struct {
 	path string

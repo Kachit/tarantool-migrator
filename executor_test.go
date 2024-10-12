@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 )
 
 type ExecutorTestSuite struct {
@@ -25,19 +24,9 @@ type ExecutorTestSuite struct {
 }
 
 func (suite *ExecutorTestSuite) SetupTest() {
-	ts := time.Now().UTC()
-	migration := migrationTuple{
-		ID:         fmt.Sprintf("%d", ts.Unix()),
-		ExecutedAt: ts.String(),
-	}
 	suite.mock = &mocks.PoolerMock{}
 	suite.ctx = context.Background()
-	suite.tupleResponse = test_helpers.NewMockResponse(suite.T(), [][]interface{}{
-		{
-			migration.ID,
-			migration.ExecutedAt,
-		},
-	})
+	suite.tupleResponse = test_helpers.NewMockResponse(suite.T(), newMigrationTupleStubResponseBody())
 	suite.testable = newExecutor(suite.mock, DefaultOptions)
 }
 
