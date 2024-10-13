@@ -10,8 +10,8 @@ import (
 func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options ...func(*Migrator)) *Migrator {
 	m := &Migrator{
 		logger:     DefaultLogger,
-		migrations: migrations,
 		opts:       DefaultOptions,
+		migrations: migrations,
 	}
 	for _, opt := range options {
 		opt(m)
@@ -36,7 +36,7 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 	}
 	err := m.ex.createMigrationsSpaceIfNotExists(ctx, createMigrationsSpacePath)
 	if err != nil {
-		return err
+		return fmt.Errorf(`init migrations space error: %w`, err)
 	}
 	for _, migration := range m.migrations {
 		m.logger.Info(ctx, fmt.Sprintf(`migration "%s" process started`, migration.ID))
