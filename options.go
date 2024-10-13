@@ -6,13 +6,16 @@ const createMigrationsSpacePath = "lua/migrations/create_migrations_space.up.lua
 
 // Options define options for all migrations.
 type Options struct {
-	// MigrationsSpace is the migrations space.
+	// Migrations space
 	MigrationsSpace string
-	Instances       []string
-
-	TransactionEnabled bool
-	ReadMode           pool.Mode
-	WriteMode          pool.Mode
+	// Tarantool instances list
+	Instances []string
+	// Transactions enabled flag
+	TransactionsEnabled bool
+	// Default mode for read requests
+	ReadMode pool.Mode
+	// Default mode for read-write requests
+	WriteMode pool.Mode
 }
 
 var DefaultOptions = &Options{

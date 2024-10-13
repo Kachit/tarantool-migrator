@@ -2,7 +2,7 @@ package tarantool_migrator
 
 import "errors"
 
-// ErrMissingID is returned when the ID od migration is equal to ""
+// ErrMissingID is returned when the ID of migration is equal to ""
 var ErrMissingID = errors.New("missing ID in migration")
 var ErrMissingMigrateFunc = errors.New("missing migrate function in migration")
 var ErrMissingRollbackFunc = errors.New("missing rollback function in migration")
