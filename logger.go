@@ -2,6 +2,7 @@ package tarantool_migrator
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"time"
@@ -9,9 +10,11 @@ import (
 
 type LogLevel int
 
-const LogLevelSilent LogLevel = iota
-const LogLevelInfo LogLevel = iota
-const LogLevelDebug LogLevel = iota
+const (
+	LogLevelSilent LogLevel = iota
+	LogLevelInfo   LogLevel = iota
+	LogLevelDebug  LogLevel = iota
+)
 
 const LogPrefixDefault string = "Tarantool-Migrator"
 
@@ -43,6 +46,11 @@ var DefaultLogger = NewLogger(log.New(os.Stdout, "", log.LstdFlags), LoggerConfi
 	Prefix:   LogPrefixDefault,
 })
 
+var DebugLogger = NewLogger(log.New(os.Stdout, "", log.LstdFlags), LoggerConfig{
+	LogLevel: LogLevelDebug,
+	Prefix:   LogPrefixDefault,
+})
+
 var SilentLogger = NewLogger(log.New(os.Stdout, "", log.LstdFlags), LoggerConfig{
 	LogLevel: LogLevelSilent,
 	Prefix:   LogPrefixDefault,
@@ -61,7 +69,14 @@ func (l *logger) Info(ctx context.Context, msg string, args ...interface{}) {
 
 func (l *logger) Debug(ctx context.Context, msg string, args ...interface{}) {
 	if l.LogLevel >= LogLevelDebug {
-		l.Printf(l.getPrefix()+msg, args...)
+		var debug string
+		bt, err := json.Marshal(args)
+		if err != nil {
+			debug = err.Error()
+		} else {
+			debug = string(bt)
+		}
+		l.Printf(l.getPrefix()+msg, debug)
 	}
 }
 

@@ -28,6 +28,7 @@ type Migrator struct {
 }
 
 func (m *Migrator) Migrate(ctx context.Context) error {
+	m.logger.Debug(ctx, fmt.Sprintf(`started "migrate" command with "%d" migrations and options:`, len(m.migrations)), m.opts)
 	if m.migrations.IsEmpty() {
 		return ErrNoDefinedMigrations
 	}
@@ -61,6 +62,7 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 }
 
 func (m *Migrator) RollbackLast(ctx context.Context) error {
+	m.logger.Debug(ctx, fmt.Sprintf(`started "rollback-last" command with "%d" migrations and options:`, len(m.migrations)), m.opts)
 	if m.migrations.IsEmpty() {
 		return ErrNoDefinedMigrations
 	}

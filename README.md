@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/github/license/Kachit/tarantool-migrator)](https://github.com/Kachit/tarantool-migrator/blob/main/LICENSE)
 
 ## Description
-Simple Tarantool migrator
+Simple Tarantool migrator written in golang
 
 ## Download
 ```shell
@@ -18,7 +18,12 @@ go get -u github.com/kachit/tarantool-migrator
 ## Usage
 
 ### Migrations as lua files
-**NOTICE**: When migrations loaded from filesystem they sorted by name automatically
+Lua migration file format: `{migration-name}.{migration-cmd}.lua`
+* `{migration-name}` - migration ID in migrations space
+* `{migration-cmd}` - (`up` or `down`) migration command
+* `--` in start of migration filename - exclude migration from list
+
+**NOTICE**: When migrations loaded from filesystem they sorted by `{migration-name}` automatically
 ```
 |-- migrations
     |-- 202410082345_test_migration_1.down.lua // 202410082345_test_migration_1 Down cmd
@@ -53,6 +58,12 @@ var Migrations = tarantool_migrator.MigrationsCollection{
 	},
 }
 ```
+
+### Migrations in tarantool space (by default `migrations`)
+| **id**                        | **executed_at**                       |
+|-------------------------------|---------------------------------------|
+| 202410082345_test_migration_1 | 2024-10-11 20:33:28.3860465 +0000 UTC |
+| 202410091201_test_migration_2 | 2024-10-11 20:33:28.3860465 +0000 UTC |
 
 ### Let's connect to tarantool
 ```go
@@ -149,7 +160,7 @@ func main(){
 		panic(err)
 	}
 
-	//migrate
+	//rollback last applied migration (202410091201_test_migration_2)
 	migrator := tarantool_migrator.NewMigrator(tt, migrations)
 	err = migrator.RollbackLast(ctx)
 	if err != nil {
