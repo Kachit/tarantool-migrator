@@ -1,6 +1,10 @@
 # Tarantool Migrator
 [![Go Test](https://github.com/Kachit/tarantool-migrator/actions/workflows/tests.yml/badge.svg)](https://github.com/Kachit/tarantool-migrator/actions)
 [![Codecov](https://codecov.io/github/Kachit/tarantool-migrator/graph/badge.svg)](https://codecov.io/github/Kachit/tarantool-migrator)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kachit/tarantool-migrator)](https://goreportcard.com/report/github.com/kachit/tarantool-migrator)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/Kachit/tarantool-migrator)](https://go.dev/doc/go1.20)
+[![Release](https://img.shields.io/github/v/release/Kachit/tarantool-migrator.svg)](https://github.com/Kachit/tarantool-migrator/releases)
+[![GoDoc](https://pkg.go.dev/badge/github.com/kachit/tarantool-migrator)](https://pkg.go.dev/github.com/kachit/tarantool-migrator)
 [![License](https://img.shields.io/github/license/Kachit/tarantool-migrator)](https://github.com/Kachit/tarantool-migrator/blob/main/LICENSE)
 
 ## Description
@@ -14,6 +18,7 @@ go get -u github.com/kachit/tarantool-migrator
 ## Usage
 
 ### Migrations as lua files
+**NOTICE**: When migrations loaded from filesystem they sorted by name automatically
 ```
 |-- migrations
     |-- 202410082345_test_migration_1.down.lua // 202410082345_test_migration_1 Down cmd
@@ -23,8 +28,8 @@ go get -u github.com/kachit/tarantool-migrator
     |-- --202410091545_test_migration_3.up.lua //excluded migration
 ```
 
-### Migrations as go files
-**NOTICE**: When migrations loaded from filesystem they sorted by name automatically
+### Migrations as go slice
+**NOTICE**: When migrations built as go slice they order will not change
 ```go
 package migrations
 
@@ -50,7 +55,6 @@ var Migrations = tarantool_migrator.MigrationsCollection{
 ```
 
 ### Let's connect to tarantool
-**NOTICE**: When migrations built as go slice they order can`t change
 ```go
 package main
 
