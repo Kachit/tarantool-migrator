@@ -1,6 +1,6 @@
 # Tarantool Migrator
-[![Go Test](https://github.com/Kachit/tarantool-migrator/actions/workflows/test.yml/badge.svg)](https://github.com/Kachit/tarantool-migrator/actions)
-[![codecov](https://codecov.io/github/Kachit/tarantool-migrator/graph/badge.svg?token=LbJ2ALZ0gs)](https://codecov.io/github/Kachit/tarantool-migrator)
+[![Go Test](https://github.com/Kachit/tarantool-migrator/actions/workflows/tests.yml/badge.svg)](https://github.com/Kachit/tarantool-migrator/actions)
+[![Codecov](https://codecov.io/github/Kachit/tarantool-migrator/graph/badge.svg?token=LbJ2ALZ0gs)](https://codecov.io/github/Kachit/tarantool-migrator)
 [![License](https://img.shields.io/github/license/Kachit/tarantool-migrator)](https://github.com/Kachit/tarantool-migrator/blob/main/LICENSE)
 
 ## Description
