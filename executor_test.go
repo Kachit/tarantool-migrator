@@ -45,6 +45,33 @@ func (suite *ExecutorTestSuite) TestApplyMigrationInDryRunMode() {
 	assert.Len(suite.T(), calls, 0)
 }
 
+func (suite *ExecutorTestSuite) TestApplyMigrationWithMigrateError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		fmt.Errorf("tarantool error"),
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+	err := suite.testable.applyMigration(suite.ctx, &Migration{
+		ID:      "migration-with-migrate-error",
+		Migrate: NewGenericMigrateFunction("box.info"),
+	})
+	calls := suite.mock.DoCalls()
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "tarantool error", err.Error())
+	assert.Len(suite.T(), calls, 1)
+	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+
+	migrateReqRef := reflect.ValueOf(calls[0].Req).Elem()
+	migrateReq := migrateReqRef.Interface().(tarantool.EvalRequest)
+	assert.IsType(suite.T(), tarantool.EvalRequest{}, migrateReq)
+	assert.Equal(suite.T(), iproto.IPROTO_EVAL, migrateReq.Type())
+	exprField := migrateReqRef.FieldByName("expr")
+	assert.Equal(suite.T(), "box.info", exprField.String())
+	argsField := migrateReqRef.FieldByName("args")
+	assert.Equal(suite.T(), "[]", fmt.Sprintf("%v", argsField))
+}
+
 func (suite *ExecutorTestSuite) TestApplyMigrationWithInsertError() {
 	mockDoer := test_helpers.NewMockDoer(suite.T(),
 		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
@@ -125,6 +152,33 @@ func (suite *ExecutorTestSuite) TestRollbackMigrationInDryRunMode() {
 	calls := suite.mock.DoCalls()
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), calls, 0)
+}
+
+func (suite *ExecutorTestSuite) TestRollbackMigrationWithRollbackError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		fmt.Errorf("tarantool error"),
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+	err := suite.testable.rollbackMigration(suite.ctx, &Migration{
+		ID:       "migration-with-rollback-error",
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+	calls := suite.mock.DoCalls()
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "tarantool error", err.Error())
+	assert.Len(suite.T(), calls, 1)
+	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+
+	migrateReqRef := reflect.ValueOf(calls[0].Req).Elem()
+	migrateReq := migrateReqRef.Interface().(tarantool.EvalRequest)
+	assert.IsType(suite.T(), tarantool.EvalRequest{}, migrateReq)
+	assert.Equal(suite.T(), iproto.IPROTO_EVAL, migrateReq.Type())
+	exprField := migrateReqRef.FieldByName("expr")
+	assert.Equal(suite.T(), "box.info", exprField.String())
+	argsField := migrateReqRef.FieldByName("args")
+	assert.Equal(suite.T(), "[]", fmt.Sprintf("%v", argsField))
 }
 
 func (suite *ExecutorTestSuite) TestRollbackMigrationWithDeleteError() {

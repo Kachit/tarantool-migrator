@@ -73,7 +73,7 @@ func (m *Migrator) RollbackLast(ctx context.Context) error {
 	}
 	mgr, err := m.ex.findLastAppliedMigration(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf(`find applied migration error: %w`, err)
 	}
 	m.logger.Info(ctx, fmt.Sprintf(`migration "%s" found for rollback`, mgr.ID))
 	migration, err := m.migrations.Find(mgr.ID)

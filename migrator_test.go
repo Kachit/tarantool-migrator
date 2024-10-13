@@ -123,6 +123,28 @@ func (suite *MigratorTestSuite) TestMigrateMigrationIsAlreadyApplied() {
 	assert.Len(suite.T(), calls, 2)
 }
 
+func (suite *MigratorTestSuite) TestMigrateMigrationHasAppliedError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
+		fmt.Errorf("tarantool error"),
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+
+	migrations := make(MigrationsCollection, 0)
+	migrations = append(migrations, &Migration{
+		ID:      "migration-has-applied-error",
+		Migrate: NewGenericMigrateFunction("box.info"),
+	})
+	suite.testable.migrations = migrations
+	err := suite.testable.Migrate(suite.ctx)
+	calls := suite.mock.DoCalls()
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), `migration "migration-has-applied-error" error: tarantool error`, err.Error())
+	assert.Len(suite.T(), calls, 2)
+}
+
 func (suite *MigratorTestSuite) TestMigrateMigrationMigrateError() {
 	mockDoer := test_helpers.NewMockDoer(suite.T(),
 		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
@@ -144,6 +166,29 @@ func (suite *MigratorTestSuite) TestMigrateMigrationMigrateError() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), `migration "migrate-error" error: tarantool error`, err.Error())
 	assert.Len(suite.T(), calls, 3)
+}
+
+func (suite *MigratorTestSuite) TestMigrateSuccess() {
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
+		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
+		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
+		suite.tupleResponse,
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+
+	migrations := make(MigrationsCollection, 0)
+	migrations = append(migrations, &Migration{
+		ID:      "migration-success",
+		Migrate: NewGenericMigrateFunction("box.info"),
+	})
+	suite.testable.migrations = migrations
+	err := suite.testable.Migrate(suite.ctx)
+	calls := suite.mock.DoCalls()
+	assert.NoError(suite.T(), err)
+	assert.Len(suite.T(), calls, 4)
 }
 
 func (suite *MigratorTestSuite) TestMigrateMigrationInDriveRunMode() {
@@ -174,6 +219,160 @@ func (suite *MigratorTestSuite) TestRollbackLastWithoutMigrations() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), "no defined migrations", err.Error())
 	assert.Len(suite.T(), calls, 0)
+}
+
+func (suite *MigratorTestSuite) TestRollbackMigrationFindLastError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		fmt.Errorf("tarantool error"),
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+
+	migrations := make(MigrationsCollection, 0)
+	migrations = append(migrations, &Migration{
+		ID:       "find-last-error",
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+	suite.testable.migrations = migrations
+	err := suite.testable.RollbackLast(suite.ctx)
+	calls := suite.mock.DoCalls()
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), `find applied migration error: tarantool error`,
+		err.Error())
+	assert.Len(suite.T(), calls, 1)
+}
+
+func (suite *MigratorTestSuite) TestRollbackMigrationNotExists() {
+	body := newMigrationTupleStubResponseBody()
+	resp := test_helpers.NewMockResponse(suite.T(), body)
+	migrationId := fmt.Sprintf("%v", body[0][0])
+
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		resp,
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+
+	migrations := make(MigrationsCollection, 0)
+	migrations = append(migrations, &Migration{
+		ID:       "not-exists",
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+	suite.testable.migrations = migrations
+	err := suite.testable.RollbackLast(suite.ctx)
+	calls := suite.mock.DoCalls()
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), fmt.Sprintf(`migration "%s" error: tried to migrate to an ID that doesn't exist`,
+		migrationId),
+		err.Error())
+	assert.Len(suite.T(), calls, 1)
+}
+
+func (suite *MigratorTestSuite) TestRollbackMigrationWithoutRollbackFunction() {
+	body := newMigrationTupleStubResponseBody()
+	resp := test_helpers.NewMockResponse(suite.T(), body)
+	migrationId := fmt.Sprintf("%v", body[0][0])
+
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		resp,
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+
+	migrations := make(MigrationsCollection, 0)
+	migrations = append(migrations, &Migration{
+		ID: migrationId,
+	})
+	suite.testable.migrations = migrations
+	err := suite.testable.RollbackLast(suite.ctx)
+	calls := suite.mock.DoCalls()
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), fmt.Sprintf(`migration "%s" error: missing rollback function in migration`,
+		migrationId),
+		err.Error())
+	assert.Len(suite.T(), calls, 1)
+}
+
+func (suite *MigratorTestSuite) TestRollbackMigrationRollbackError() {
+	body := newMigrationTupleStubResponseBody()
+	resp := test_helpers.NewMockResponse(suite.T(), body)
+	migrationId := fmt.Sprintf("%v", body[0][0])
+
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		resp,
+		fmt.Errorf("tarantool error"),
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+
+	migrations := make(MigrationsCollection, 0)
+	migrations = append(migrations, &Migration{
+		ID:       migrationId,
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+	suite.testable.migrations = migrations
+	err := suite.testable.RollbackLast(suite.ctx)
+	calls := suite.mock.DoCalls()
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), fmt.Sprintf(`migration "%s" error: tarantool error`,
+		migrationId),
+		err.Error())
+	assert.Len(suite.T(), calls, 2)
+}
+
+func (suite *MigratorTestSuite) TestRollbackMigrationSuccess() {
+	body := newMigrationTupleStubResponseBody()
+	resp := test_helpers.NewMockResponse(suite.T(), body)
+	migrationId := fmt.Sprintf("%v", body[0][0])
+
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		resp,
+		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
+		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+
+	migrations := make(MigrationsCollection, 0)
+	migrations = append(migrations, &Migration{
+		ID:       migrationId,
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+	suite.testable.migrations = migrations
+	err := suite.testable.RollbackLast(suite.ctx)
+	calls := suite.mock.DoCalls()
+	assert.NoError(suite.T(), err)
+	assert.Len(suite.T(), calls, 3)
+}
+
+func (suite *MigratorTestSuite) TestRollbackMigrationInDriveRunMode() {
+	body := newMigrationTupleStubResponseBody()
+	resp := test_helpers.NewMockResponse(suite.T(), body)
+	migrationId := fmt.Sprintf("%v", body[0][0])
+
+	mockDoer := test_helpers.NewMockDoer(suite.T(),
+		resp,
+	)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+		return mockDoer.Do(req)
+	}
+
+	migrations := make(MigrationsCollection, 0)
+	migrations = append(migrations, &Migration{
+		ID:       migrationId,
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+	suite.testable.migrations = migrations
+	suite.testable.opts.DryRun = true
+	err := suite.testable.RollbackLast(suite.ctx)
+	calls := suite.mock.DoCalls()
+	assert.NoError(suite.T(), err)
+	assert.Len(suite.T(), calls, 1)
 }
 
 func TestMigratorTestSuite(t *testing.T) {
