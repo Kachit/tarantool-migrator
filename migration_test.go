@@ -16,7 +16,7 @@ func (suite *MigrationTestSuite) SetupTest() {
 }
 
 func (suite *MigrationTestSuite) TestIsValidForMigrateValid() {
-	suite.testable.ID = "test"
+	suite.testable.ID = "test-1"
 	suite.testable.Migrate = NewGenericMigrateFunction("foo")
 	err := suite.testable.isValidForMigrate()
 	assert.NoError(suite.T(), err)
@@ -27,7 +27,7 @@ func (suite *MigrationTestSuite) TestIsValidForMigrateInvalid() {
 	assert.Error(suite.T(), err)
 	assert.IsType(suite.T(), ErrMissingID, err)
 	assert.Equal(suite.T(), "missing ID in migration", err.Error())
-	suite.testable.ID = "test"
+	suite.testable.ID = "test-2"
 	err = suite.testable.isValidForMigrate()
 	assert.Error(suite.T(), err)
 	assert.IsType(suite.T(), ErrMissingMigrateFunc, err)
@@ -35,7 +35,7 @@ func (suite *MigrationTestSuite) TestIsValidForMigrateInvalid() {
 }
 
 func (suite *MigrationTestSuite) TestIsValidForRollbackValid() {
-	suite.testable.ID = "test"
+	suite.testable.ID = "test-3"
 	suite.testable.Rollback = NewGenericMigrateFunction("foo")
 	err := suite.testable.isValidForRollback()
 	assert.NoError(suite.T(), err)
@@ -46,7 +46,7 @@ func (suite *MigrationTestSuite) TestIsValidForRollbackInvalid() {
 	assert.Error(suite.T(), err)
 	assert.IsType(suite.T(), ErrMissingID, err)
 	assert.Equal(suite.T(), "missing ID in migration", err.Error())
-	suite.testable.ID = "test"
+	suite.testable.ID = "test-4"
 	err = suite.testable.isValidForRollback()
 	assert.Error(suite.T(), err)
 	assert.IsType(suite.T(), ErrMissingRollbackFunc, err)

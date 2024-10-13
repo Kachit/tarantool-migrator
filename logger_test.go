@@ -55,7 +55,7 @@ func (suite *LoggerTestSuite) TestLogLevelDebug() {
 	testable.Debug(suite.ctx, "debug", 123, 456)
 	assert.Len(suite.T(), suite.logWriter.Logs, 2)
 	assert.Equal(suite.T(), "info", suite.logWriter.Logs[0].msg)
-	assert.Equal(suite.T(), "debug", suite.logWriter.Logs[1].msg)
+	assert.Equal(suite.T(), "debug [123,456]", suite.logWriter.Logs[1].msg)
 }
 
 func TestLoggerTestSuite(t *testing.T) {

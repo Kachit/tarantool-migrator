@@ -29,6 +29,7 @@ func (mg *Migration) isValidForMigrate() error {
 	if mg.Migrate == nil {
 		return ErrMissingMigrateFunc
 	}
+
 	return nil
 }
 
@@ -39,6 +40,7 @@ func (mg *Migration) isValidForRollback() error {
 	if mg.Rollback == nil {
 		return ErrMissingRollbackFunc
 	}
+
 	return nil
 }
 
@@ -48,6 +50,7 @@ func NewGenericMigrateFunction(req string) func(context.Context, pool.Pooler, *O
 		if err != nil {
 			return err
 		}
+
 		return nil
 	}
 }

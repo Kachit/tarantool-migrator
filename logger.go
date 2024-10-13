@@ -26,8 +26,9 @@ type LoggerConfig struct {
 func (c *LoggerConfig) getPrefix() string {
 	prefix := c.Prefix
 	if prefix != "" {
-		prefix = prefix + ": "
+		prefix += ": "
 	}
+
 	return prefix
 }
 
@@ -76,7 +77,7 @@ func (l *logger) Debug(ctx context.Context, msg string, args ...interface{}) {
 		} else {
 			debug = string(bt)
 		}
-		l.Printf(l.getPrefix()+msg, debug)
+		l.Printf(l.getPrefix() + msg + " " + debug)
 	}
 }
 

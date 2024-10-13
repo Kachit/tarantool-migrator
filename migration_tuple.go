@@ -16,6 +16,7 @@ func newMigrationTupleStubResponseBody() [][]interface{} {
 		ID:         fmt.Sprintf("%d", ts.Unix()),
 		ExecutedAt: ts.String(),
 	}
+
 	return [][]interface{}{
 		{
 			migration.ID,

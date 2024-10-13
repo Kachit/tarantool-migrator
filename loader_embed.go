@@ -49,6 +49,7 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 		migrations = append(migrations, migration)
 	}
 	migrations.sort()
+
 	return migrations, nil
 }
 

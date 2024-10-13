@@ -25,15 +25,3 @@ var DefaultOptions = &Options{
 	ReadMode:        pool.ANY,
 	WriteMode:       pool.RW,
 }
-
-func WithLogger(lg Logger) func(migrator *Migrator) {
-	return func(m *Migrator) {
-		m.logger = lg
-	}
-}
-
-func WithOptions(op *Options) func(migrator *Migrator) {
-	return func(m *Migrator) {
-		m.opts = op
-	}
-}

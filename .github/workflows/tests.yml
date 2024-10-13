@@ -25,6 +25,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: v1.60
+
       - name: Create coverage file
         run: go test -coverprofile='coverage.txt' -covermode=atomic
 

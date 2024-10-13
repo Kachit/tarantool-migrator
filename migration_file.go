@@ -36,6 +36,7 @@ func NewMigrationFile(path string, file fs.DirEntry) (*MigrationFile, error) {
 	if mgrParts[1] != MigrationFileSuffixUp && mgrParts[1] != MigrationFileSuffixDown {
 		return nil, ErrWrongMigrationCmdFormat
 	}
+
 	return &MigrationFile{
 		path: path + "/" + file.Name(),
 		file: file,

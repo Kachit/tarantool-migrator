@@ -14,6 +14,7 @@ func (m *MigrationsCollection) Find(migrationID string) (*Migration, error) {
 			return mgr, nil
 		}
 	}
+
 	return nil, ErrMigrationIDDoesNotExist
 }
 

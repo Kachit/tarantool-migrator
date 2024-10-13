@@ -23,13 +23,6 @@ func (suite *MigratorTestSuite) SetupTest() {
 	suite.testable = NewMigrator(suite.mock, nil, WithLogger(SilentLogger))
 }
 
-//func (suite *MigratorTestSuite) TestChangeLogger() {
-//	ref := reflect.ValueOf(suite.testable).Elem()
-//	loggerField := ref.FieldByName("logger")
-//	lg := loggerField.Interface().(logger)
-//	fmt.Println(lg)
-//}
-
 func TestMigratorTestSuite(t *testing.T) {
 	suite.Run(t, new(MigratorTestSuite))
 }

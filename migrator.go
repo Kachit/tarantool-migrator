@@ -17,6 +17,7 @@ func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options ...fun
 		opt(m)
 	}
 	m.ex = newExecutor(tt, m.opts)
+
 	return m
 }
 
@@ -28,7 +29,8 @@ type Migrator struct {
 }
 
 func (m *Migrator) Migrate(ctx context.Context) error {
-	m.logger.Debug(ctx, fmt.Sprintf(`started "migrate" command with "%d" migrations and options:`, len(m.migrations)), m.opts)
+	m.logger.Debug(ctx, fmt.Sprintf(`started "migrate" command with "%d" migrations and options:`,
+		len(m.migrations)), m.opts)
 	if m.migrations.IsEmpty() {
 		return ErrNoDefinedMigrations
 	}
@@ -53,16 +55,19 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 				return fmt.Errorf(`migration "%s" error: %w`, migration.ID, err)
 			}
 			migratedAt := time.Now().UTC().Sub(startedAt)
-			m.logger.Info(ctx, fmt.Sprintf(`migration "%s" successfully migrated in %.3fms`, migration.ID, formatDurationToMs(migratedAt)))
+			m.logger.Info(ctx, fmt.Sprintf(`migration "%s" successfully migrated in %.3fms`,
+				migration.ID, formatDurationToMs(migratedAt)))
 		} else {
 			m.logger.Info(ctx, fmt.Sprintf(`migration "%s" is already migrated`, migration.ID))
 		}
 	}
+
 	return nil
 }
 
 func (m *Migrator) RollbackLast(ctx context.Context) error {
-	m.logger.Debug(ctx, fmt.Sprintf(`started "rollback-last" command with "%d" migrations and options:`, len(m.migrations)), m.opts)
+	m.logger.Debug(ctx, fmt.Sprintf(`started "rollback-last" command with "%d" migrations and options:`,
+		len(m.migrations)), m.opts)
 	if m.migrations.IsEmpty() {
 		return ErrNoDefinedMigrations
 	}
@@ -85,6 +90,20 @@ func (m *Migrator) RollbackLast(ctx context.Context) error {
 		return fmt.Errorf(`migration "%s" error: %w`, mgr.ID, err)
 	}
 	rolledAt := time.Now().UTC().Sub(startedAt)
-	m.logger.Info(ctx, fmt.Sprintf(`migration "%s" successfully rollbacked in %.3fms`, mgr.ID, formatDurationToMs(rolledAt)))
+	m.logger.Info(ctx, fmt.Sprintf(`migration "%s" successfully rollbacked in %.3fms`,
+		mgr.ID, formatDurationToMs(rolledAt)))
+
 	return nil
+}
+
+func WithLogger(lg Logger) func(migrator *Migrator) {
+	return func(m *Migrator) {
+		m.logger = lg
+	}
+}
+
+func WithOptions(op *Options) func(migrator *Migrator) {
+	return func(m *Migrator) {
+		m.opts = op
+	}
 }

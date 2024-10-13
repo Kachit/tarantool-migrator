@@ -28,15 +28,18 @@ func (e *Executor) createMigrationsSpaceIfNotExists(ctx context.Context, path st
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (e *Executor) hasAppliedMigration(ctx context.Context, migrationID string) (bool, error) {
 	var tuples []migrationTuple
-	err := e.tt.Do(tarantool.NewSelectRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID}), e.opts.ReadMode).GetTyped(&tuples)
+	req := tarantool.NewSelectRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID})
+	err := e.tt.Do(req, e.opts.ReadMode).GetTyped(&tuples)
 	if err != nil {
 		return false, err
 	}
+
 	return len(tuples) > 0, nil
 }
 
@@ -50,18 +53,24 @@ func (e *Executor) insertMigration(ctx context.Context, migrationID string) erro
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (e *Executor) deleteMigration(ctx context.Context, migrationID string) error {
-	_, err := e.tt.Do(tarantool.NewDeleteRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID}), e.opts.WriteMode).Get()
+	req := tarantool.NewDeleteRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID})
+	_, err := e.tt.Do(req, e.opts.WriteMode).Get()
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (e *Executor) applyMigration(ctx context.Context, migration *Migration) error {
+	if e.opts.DryRun {
+		return nil
+	}
 	err := migration.Migrate(ctx, e.tt, e.opts)
 	if err != nil {
 		return err
@@ -70,10 +79,14 @@ func (e *Executor) applyMigration(ctx context.Context, migration *Migration) err
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (e *Executor) rollbackMigration(ctx context.Context, migration *Migration) error {
+	if e.opts.DryRun {
+		return nil
+	}
 	err := migration.Rollback(ctx, e.tt, e.opts)
 	if err != nil {
 		return err
@@ -82,12 +95,14 @@ func (e *Executor) rollbackMigration(ctx context.Context, migration *Migration) 
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (e *Executor) findLastAppliedMigration(ctx context.Context) (*migrationTuple, error) {
 	var tuples []migrationTuple
-	expr := strings.ReplaceAll("return box.space._migrations_space_.index.id:max()", "_migrations_space_", e.opts.MigrationsSpace)
+	cmd := "return box.space._migrations_space_.index.id:max()"
+	expr := strings.ReplaceAll(cmd, "_migrations_space_", e.opts.MigrationsSpace)
 	err := e.tt.Do(tarantool.NewEvalRequest(expr).Context(ctx), e.opts.ReadMode).GetTyped(&tuples)
 	if err != nil {
 		return nil, err
@@ -95,5 +110,6 @@ func (e *Executor) findLastAppliedMigration(ctx context.Context) (*migrationTupl
 	if len(tuples) == 0 {
 		return nil, ErrNoAppliedMigrations
 	}
+
 	return &tuples[0], nil
 }

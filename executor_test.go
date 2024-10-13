@@ -30,6 +30,32 @@ func (suite *ExecutorTestSuite) SetupTest() {
 	suite.testable = newExecutor(suite.mock, DefaultOptions)
 }
 
+func (suite *ExecutorTestSuite) TestApplyMigrationInDryRunMode() {
+	opts := DefaultOptions
+	opts.DryRun = true
+	suite.testable.opts = opts
+
+	err := suite.testable.applyMigration(suite.ctx, &Migration{
+		ID: "dry-run-migration",
+	})
+	calls := suite.mock.DoCalls()
+	assert.NoError(suite.T(), err)
+	assert.Len(suite.T(), calls, 0)
+}
+
+func (suite *ExecutorTestSuite) TestRollbackMigrationInDryRunMode() {
+	opts := DefaultOptions
+	opts.DryRun = true
+	suite.testable.opts = opts
+
+	err := suite.testable.rollbackMigration(suite.ctx, &Migration{
+		ID: "dry-run-migration",
+	})
+	calls := suite.mock.DoCalls()
+	assert.NoError(suite.T(), err)
+	assert.Len(suite.T(), calls, 0)
+}
+
 func (suite *ExecutorTestSuite) TestHasAppliedMigrationFound() {
 	mockDoer := test_helpers.NewMockDoer(suite.T(),
 		suite.tupleResponse,
