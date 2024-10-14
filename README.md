@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/kachit/tarantool-migrator)](https://goreportcard.com/report/github.com/kachit/tarantool-migrator)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/Kachit/tarantool-migrator)](https://go.dev/doc/go1.20)
 [![Release](https://img.shields.io/github/v/release/Kachit/tarantool-migrator.svg)](https://github.com/Kachit/tarantool-migrator/releases)
-[![GoDoc](https://pkg.go.dev/badge/github.com/kachit/tarantool-migrator)](https://pkg.go.dev/github.com/kachit/tarantool-migrator)
+[![GoDoc](https://img.shields.io/badge/go.dev-reference-brightgreen?logo=go&logoColor=white&style=flat)](https://pkg.go.dev/github.com/kachit/tarantool-migrator)
 [![License](https://img.shields.io/github/license/Kachit/tarantool-migrator)](https://github.com/Kachit/tarantool-migrator/blob/main/LICENSE)
 
 ## Description
@@ -59,7 +59,12 @@ var Migrations = tarantool_migrator.MigrationsCollection{
 }
 ```
 
-### Migrations in tarantool space (by default `migrations`)
+### Migrations in tarantool
+
+By default, tarantool migrations stored in `migrations` space, but you can change it in options
+
+Example:
+
 | **id**                        | **executed_at**                       |
 |-------------------------------|---------------------------------------|
 | 202410082345_test_migration_1 | 2024-10-11 20:33:28.3860465 +0000 UTC |
@@ -172,4 +177,9 @@ func main(){
 ## Coverage
 ```bash
 go test --coverprofile=coverage.out ./... ; go tool cover -func coverage.out ; go tool cover --html=coverage.out -o coverage.html
+```
+
+## Linters ##
+```bash
+golangci-lint run
 ```
