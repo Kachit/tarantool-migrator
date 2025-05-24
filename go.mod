@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/stretchr/testify v1.10.0
-	github.com/tarantool/go-iproto v1.0.0
+	github.com/tarantool/go-iproto v1.1.0
 	github.com/tarantool/go-tarantool/v2 v2.1.0
 )
 
