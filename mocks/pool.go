@@ -4,6 +4,7 @@
 package mocks
 
 import (
+	"context"
 	"github.com/tarantool/go-tarantool/v2"
 	"github.com/tarantool/go-tarantool/v2/pool"
 	"sync"
@@ -20,6 +21,9 @@ var _ Pooler = &PoolerMock{}
 //
 //		// make and configure a mocked Pooler
 //		mockedPooler := &PoolerMock{
+//			AddFunc: func(ctx context.Context, instance pool.Instance) error {
+//				panic("mock out the Add method")
+//			},
 //			CallFunc: func(functionName string, args interface{}, mode pool.Mode) ([]interface{}, error) {
 //				panic("mock out the Call method")
 //			},
@@ -49,6 +53,9 @@ var _ Pooler = &PoolerMock{}
 //			},
 //			CloseFunc: func() []error {
 //				panic("mock out the Close method")
+//			},
+//			CloseGracefulFunc: func() []error {
+//				panic("mock out the CloseGraceful method")
 //			},
 //			ConfiguredTimeoutFunc: func(mode pool.Mode) (time.Duration, error) {
 //				panic("mock out the ConfiguredTimeout method")
@@ -110,6 +117,9 @@ var _ Pooler = &PoolerMock{}
 //			PingFunc: func(mode pool.Mode) ([]interface{}, error) {
 //				panic("mock out the Ping method")
 //			},
+//			RemoveFunc: func(name string) error {
+//				panic("mock out the Remove method")
+//			},
 //			ReplaceFunc: func(space interface{}, tuple interface{}, mode ...pool.Mode) ([]interface{}, error) {
 //				panic("mock out the Replace method")
 //			},
@@ -150,6 +160,9 @@ var _ Pooler = &PoolerMock{}
 //
 //	}
 type PoolerMock struct {
+	// AddFunc mocks the Add method.
+	AddFunc func(ctx context.Context, instance pool.Instance) error
+
 	// CallFunc mocks the Call method.
 	CallFunc func(functionName string, args interface{}, mode pool.Mode) ([]interface{}, error)
 
@@ -179,6 +192,9 @@ type PoolerMock struct {
 
 	// CloseFunc mocks the Close method.
 	CloseFunc func() []error
+
+	// CloseGracefulFunc mocks the CloseGraceful method.
+	CloseGracefulFunc func() []error
 
 	// ConfiguredTimeoutFunc mocks the ConfiguredTimeout method.
 	ConfiguredTimeoutFunc func(mode pool.Mode) (time.Duration, error)
@@ -240,6 +256,9 @@ type PoolerMock struct {
 	// PingFunc mocks the Ping method.
 	PingFunc func(mode pool.Mode) ([]interface{}, error)
 
+	// RemoveFunc mocks the Remove method.
+	RemoveFunc func(name string) error
+
 	// ReplaceFunc mocks the Replace method.
 	ReplaceFunc func(space interface{}, tuple interface{}, mode ...pool.Mode) ([]interface{}, error)
 
@@ -275,6 +294,13 @@ type PoolerMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// Add holds details about calls to the Add method.
+		Add []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Instance is the instance argument value.
+			Instance pool.Instance
+		}
 		// Call holds details about calls to the Call method.
 		Call []struct {
 			// FunctionName is the functionName argument value.
@@ -364,6 +390,9 @@ type PoolerMock struct {
 		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
+		}
+		// CloseGraceful holds details about calls to the CloseGraceful method.
+		CloseGraceful []struct {
 		}
 		// ConfiguredTimeout holds details about calls to the ConfiguredTimeout method.
 		ConfiguredTimeout []struct {
@@ -543,6 +572,11 @@ type PoolerMock struct {
 			// Mode is the mode argument value.
 			Mode pool.Mode
 		}
+		// Remove holds details about calls to the Remove method.
+		Remove []struct {
+			// Name is the name argument value.
+			Name string
+		}
 		// Replace holds details about calls to the Replace method.
 		Replace []struct {
 			// Space is the space argument value.
@@ -689,6 +723,7 @@ type PoolerMock struct {
 			Mode []pool.Mode
 		}
 	}
+	lockAdd               sync.RWMutex
 	lockCall              sync.RWMutex
 	lockCall16            sync.RWMutex
 	lockCall16Async       sync.RWMutex
@@ -699,6 +734,7 @@ type PoolerMock struct {
 	lockCallAsync         sync.RWMutex
 	lockCallTyped         sync.RWMutex
 	lockClose             sync.RWMutex
+	lockCloseGraceful     sync.RWMutex
 	lockConfiguredTimeout sync.RWMutex
 	lockConnectedNow      sync.RWMutex
 	lockDelete            sync.RWMutex
@@ -719,6 +755,7 @@ type PoolerMock struct {
 	lockNewStream         sync.RWMutex
 	lockNewWatcher        sync.RWMutex
 	lockPing              sync.RWMutex
+	lockRemove            sync.RWMutex
 	lockReplace           sync.RWMutex
 	lockReplaceAsync      sync.RWMutex
 	lockReplaceTyped      sync.RWMutex
@@ -730,6 +767,42 @@ type PoolerMock struct {
 	lockUpdateTyped       sync.RWMutex
 	lockUpsert            sync.RWMutex
 	lockUpsertAsync       sync.RWMutex
+}
+
+// Add calls AddFunc.
+func (mock *PoolerMock) Add(ctx context.Context, instance pool.Instance) error {
+	if mock.AddFunc == nil {
+		panic("PoolerMock.AddFunc: method is nil but Pooler.Add was just called")
+	}
+	callInfo := struct {
+		Ctx      context.Context
+		Instance pool.Instance
+	}{
+		Ctx:      ctx,
+		Instance: instance,
+	}
+	mock.lockAdd.Lock()
+	mock.calls.Add = append(mock.calls.Add, callInfo)
+	mock.lockAdd.Unlock()
+	return mock.AddFunc(ctx, instance)
+}
+
+// AddCalls gets all the calls that were made to Add.
+// Check the length with:
+//
+//	len(mockedPooler.AddCalls())
+func (mock *PoolerMock) AddCalls() []struct {
+	Ctx      context.Context
+	Instance pool.Instance
+} {
+	var calls []struct {
+		Ctx      context.Context
+		Instance pool.Instance
+	}
+	mock.lockAdd.RLock()
+	calls = mock.calls.Add
+	mock.lockAdd.RUnlock()
+	return calls
 }
 
 // Call calls CallFunc.
@@ -1128,6 +1201,33 @@ func (mock *PoolerMock) CloseCalls() []struct {
 	mock.lockClose.RLock()
 	calls = mock.calls.Close
 	mock.lockClose.RUnlock()
+	return calls
+}
+
+// CloseGraceful calls CloseGracefulFunc.
+func (mock *PoolerMock) CloseGraceful() []error {
+	if mock.CloseGracefulFunc == nil {
+		panic("PoolerMock.CloseGracefulFunc: method is nil but Pooler.CloseGraceful was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockCloseGraceful.Lock()
+	mock.calls.CloseGraceful = append(mock.calls.CloseGraceful, callInfo)
+	mock.lockCloseGraceful.Unlock()
+	return mock.CloseGracefulFunc()
+}
+
+// CloseGracefulCalls gets all the calls that were made to CloseGraceful.
+// Check the length with:
+//
+//	len(mockedPooler.CloseGracefulCalls())
+func (mock *PoolerMock) CloseGracefulCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockCloseGraceful.RLock()
+	calls = mock.calls.CloseGraceful
+	mock.lockCloseGraceful.RUnlock()
 	return calls
 }
 
@@ -1924,6 +2024,38 @@ func (mock *PoolerMock) PingCalls() []struct {
 	mock.lockPing.RLock()
 	calls = mock.calls.Ping
 	mock.lockPing.RUnlock()
+	return calls
+}
+
+// Remove calls RemoveFunc.
+func (mock *PoolerMock) Remove(name string) error {
+	if mock.RemoveFunc == nil {
+		panic("PoolerMock.RemoveFunc: method is nil but Pooler.Remove was just called")
+	}
+	callInfo := struct {
+		Name string
+	}{
+		Name: name,
+	}
+	mock.lockRemove.Lock()
+	mock.calls.Remove = append(mock.calls.Remove, callInfo)
+	mock.lockRemove.Unlock()
+	return mock.RemoveFunc(name)
+}
+
+// RemoveCalls gets all the calls that were made to Remove.
+// Check the length with:
+//
+//	len(mockedPooler.RemoveCalls())
+func (mock *PoolerMock) RemoveCalls() []struct {
+	Name string
+} {
+	var calls []struct {
+		Name string
+	}
+	mock.lockRemove.RLock()
+	calls = mock.calls.Remove
+	mock.lockRemove.RUnlock()
 	return calls
 }
 

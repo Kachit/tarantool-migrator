@@ -20,7 +20,7 @@ type Options struct {
 	WriteMode pool.Mode `json:"write_mode"`
 }
 
-var DefaultOptions = &Options{
+var DefaultOptions = Options{
 	MigrationsSpace: "migrations",
 	ReadMode:        pool.ANY,
 	WriteMode:       pool.RW,

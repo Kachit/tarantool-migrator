@@ -8,9 +8,10 @@ import (
 )
 
 func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options ...func(*Migrator)) *Migrator {
+	opts := DefaultOptions
 	m := &Migrator{
 		logger:     DefaultLogger,
-		opts:       DefaultOptions,
+		opts:       &opts,
 		migrations: migrations,
 	}
 	for _, opt := range options {
