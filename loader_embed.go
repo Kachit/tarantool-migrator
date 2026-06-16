@@ -17,15 +17,19 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 
 	migrations := make(MigrationsCollection, 0)
 	coll := make(map[string]*Migration)
+
 	for _, file := range files {
 		if file.IsDir() || strings.HasPrefix(file.Name(), MigrationFilePrefixExcluded) {
 			continue
 		}
+
 		mgrFile, err := NewMigrationFile(path, file)
 		if err != nil {
 			return nil, err
 		}
+
 		var migration *Migration
+
 		migration, ok := coll[mgrFile.GetName()]
 		if !ok {
 			migration = &Migration{
@@ -38,6 +42,7 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 		if err != nil {
 			return nil, err
 		}
+
 		if mgrFile.GetCmd() == MigrationFileSuffixUp {
 			migration.Migrate = NewGenericMigrateFunction(string(fileData))
 		} else {
@@ -48,6 +53,7 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 	for _, migration := range coll {
 		migrations = append(migrations, migration)
 	}
+
 	migrations.sort()
 
 	return migrations, nil

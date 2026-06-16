@@ -22,8 +22,10 @@ func (e *Executor) createMigrationsSpaceIfNotExists(ctx context.Context, path st
 	if err != nil {
 		return err
 	}
+
 	migrationSpaceRequest := string(data)
 	migrationSpaceRequest = strings.ReplaceAll(migrationSpaceRequest, "_migrations_space_", e.opts.MigrationsSpace)
+
 	_, err = e.tt.Do(tarantool.NewEvalRequest(migrationSpaceRequest).Context(ctx), e.opts.WriteMode).Get()
 	if err != nil {
 		return err
@@ -34,7 +36,9 @@ func (e *Executor) createMigrationsSpaceIfNotExists(ctx context.Context, path st
 
 func (e *Executor) hasAppliedMigration(ctx context.Context, migrationID string) (bool, error) {
 	var tuples []migrationTuple
+
 	req := tarantool.NewSelectRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID})
+
 	err := e.tt.Do(req, e.opts.ReadMode).GetTyped(&tuples)
 	if err != nil {
 		return false, err
@@ -59,6 +63,7 @@ func (e *Executor) insertMigration(ctx context.Context, migrationID string) erro
 
 func (e *Executor) deleteMigration(ctx context.Context, migrationID string) error {
 	req := tarantool.NewDeleteRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID})
+
 	_, err := e.tt.Do(req, e.opts.WriteMode).Get()
 	if err != nil {
 		return err
@@ -71,10 +76,12 @@ func (e *Executor) applyMigration(ctx context.Context, migration *Migration) err
 	if e.opts.DryRun {
 		return nil
 	}
+
 	err := migration.Migrate(ctx, e.tt, e.opts)
 	if err != nil {
 		return err
 	}
+
 	err = e.insertMigration(ctx, migration.ID)
 	if err != nil {
 		return err
@@ -87,10 +94,12 @@ func (e *Executor) rollbackMigration(ctx context.Context, migration *Migration) 
 	if e.opts.DryRun {
 		return nil
 	}
+
 	err := migration.Rollback(ctx, e.tt, e.opts)
 	if err != nil {
 		return err
 	}
+
 	err = e.deleteMigration(ctx, migration.ID)
 	if err != nil {
 		return err
@@ -101,12 +110,15 @@ func (e *Executor) rollbackMigration(ctx context.Context, migration *Migration) 
 
 func (e *Executor) findLastAppliedMigration(ctx context.Context) (*migrationTuple, error) {
 	var tuples []migrationTuple
+
 	cmd := "return box.space._migrations_space_.index.id:max()"
 	expr := strings.ReplaceAll(cmd, "_migrations_space_", e.opts.MigrationsSpace)
+
 	err := e.tt.Do(tarantool.NewEvalRequest(expr).Context(ctx), e.opts.ReadMode).GetTyped(&tuples)
 	if err != nil {
 		return nil, err
 	}
+
 	if len(tuples) == 0 {
 		return nil, ErrNoAppliedMigrations
 	}

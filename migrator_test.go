@@ -3,14 +3,14 @@ package tarantool_migrator
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/kachit/tarantool-migrator/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/tarantool/go-tarantool/v3"
 	"github.com/tarantool/go-tarantool/v3/pool"
 	"github.com/tarantool/go-tarantool/v3/test_helpers"
-	"reflect"
-	"testing"
 )
 
 type MigratorTestSuite struct {
@@ -31,15 +31,10 @@ func (suite *MigratorTestSuite) SetupTest() {
 }
 
 func (suite *MigratorTestSuite) TestChangeLogger() {
-	reqLg := reflect.ValueOf(suite.testable.logger).Elem()
-	lg := reqLg.Interface().(logger)
-	assert.Equal(suite.T(), LogLevelSilent, lg.LogLevel)
+	assert.Equal(suite.T(), SilentLogger, suite.testable.logger)
 	fn := WithLogger(DebugLogger)
 	fn(suite.testable)
-
-	reqLg = reflect.ValueOf(suite.testable.logger).Elem()
-	lg = reqLg.Interface().(logger)
-	assert.Equal(suite.T(), LogLevelDebug, lg.LogLevel)
+	assert.Equal(suite.T(), DebugLogger, suite.testable.logger)
 }
 
 func (suite *MigratorTestSuite) TestChangeOptions() {
@@ -66,7 +61,7 @@ func (suite *MigratorTestSuite) TestMigrateCreateMigrationSpaceError() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID: "init-migrations-space-error",
 	})
@@ -85,7 +80,7 @@ func (suite *MigratorTestSuite) TestMigrateMigrationWithoutFunction() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID: "missing-migrate-function",
 	})
@@ -106,7 +101,7 @@ func (suite *MigratorTestSuite) TestMigrateMigrationIsAlreadyApplied() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID:      "migration-already-applied",
 		Migrate: NewGenericMigrateFunction("box.info"),
@@ -126,7 +121,7 @@ func (suite *MigratorTestSuite) TestMigrateMigrationHasAppliedError() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID:      "migration-has-applied-error",
 		Migrate: NewGenericMigrateFunction("box.info"),
@@ -148,7 +143,7 @@ func (suite *MigratorTestSuite) TestMigrateMigrationMigrateError() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID:      "migrate-error",
 		Migrate: NewGenericMigrateFunction("box.info"),
@@ -171,7 +166,7 @@ func (suite *MigratorTestSuite) TestMigrateSuccess() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID:      "migration-success",
 		Migrate: NewGenericMigrateFunction("box.info"),
@@ -191,7 +186,7 @@ func (suite *MigratorTestSuite) TestMigrateMigrationInDriveRunMode() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID:      "migrate-in-drive-run-mode",
 		Migrate: NewGenericMigrateFunction("box.info"),
@@ -219,7 +214,7 @@ func (suite *MigratorTestSuite) TestRollbackMigrationFindLastError() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID:       "find-last-error",
 		Rollback: NewGenericMigrateFunction("box.info"),
@@ -243,7 +238,7 @@ func (suite *MigratorTestSuite) TestRollbackMigrationNotExists() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID:       "not-exists",
 		Rollback: NewGenericMigrateFunction("box.info"),
@@ -268,7 +263,7 @@ func (suite *MigratorTestSuite) TestRollbackMigrationWithoutRollbackFunction() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID: migrationId,
 	})
@@ -293,7 +288,7 @@ func (suite *MigratorTestSuite) TestRollbackMigrationRollbackError() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID:       migrationId,
 		Rollback: NewGenericMigrateFunction("box.info"),
@@ -320,7 +315,7 @@ func (suite *MigratorTestSuite) TestRollbackMigrationSuccess() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID:       migrationId,
 		Rollback: NewGenericMigrateFunction("box.info"),
@@ -342,7 +337,7 @@ func (suite *MigratorTestSuite) TestRollbackMigrationInDriveRunMode() {
 		return mockDoer.Do(req)
 	}
 
-	migrations := make(MigrationsCollection, 0)
+	migrations := make(MigrationsCollection, 0, 1)
 	migrations = append(migrations, &Migration{
 		ID:       migrationId,
 		Rollback: NewGenericMigrateFunction("box.info"),

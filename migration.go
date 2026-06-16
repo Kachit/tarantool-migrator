@@ -26,6 +26,7 @@ func (mg *Migration) isValidForMigrate() error {
 	if len(mg.ID) == 0 {
 		return ErrMissingID
 	}
+
 	if mg.Migrate == nil {
 		return ErrMissingMigrateFunc
 	}
@@ -37,6 +38,7 @@ func (mg *Migration) isValidForRollback() error {
 	if len(mg.ID) == 0 {
 		return ErrMissingID
 	}
+
 	if mg.Rollback == nil {
 		return ErrMissingRollbackFunc
 	}
