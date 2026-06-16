@@ -1,6 +1,6 @@
 package tarantool_migrator
 
-import "github.com/tarantool/go-tarantool/v2/pool"
+import "github.com/tarantool/go-tarantool/v3/pool"
 
 const createMigrationsSpacePath = "lua/migrations/create_migrations_space.up.lua"
 
@@ -22,6 +22,6 @@ type Options struct {
 
 var DefaultOptions = Options{
 	MigrationsSpace: "migrations",
-	ReadMode:        pool.ANY,
-	WriteMode:       pool.RW,
+	ReadMode:        pool.ModeAny,
+	WriteMode:       pool.ModeRW,
 }

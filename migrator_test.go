@@ -6,29 +6,27 @@ import (
 	"github.com/kachit/tarantool-migrator/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"github.com/tarantool/go-tarantool/v2"
-	"github.com/tarantool/go-tarantool/v2/pool"
-	"github.com/tarantool/go-tarantool/v2/test_helpers"
+	"github.com/tarantool/go-tarantool/v3"
+	"github.com/tarantool/go-tarantool/v3/pool"
+	"github.com/tarantool/go-tarantool/v3/test_helpers"
 	"reflect"
 	"testing"
 )
 
 type MigratorTestSuite struct {
 	suite.Suite
-	ctx           context.Context
-	mock          *mocks.PoolerMock
-	tupleResponse *test_helpers.MockResponse
-	testable      *Migrator
+	ctx      context.Context
+	mock     *mocks.PoolerMock
+	testable *Migrator
 }
 
 func (suite *MigratorTestSuite) SetupTest() {
 	suite.mock = &mocks.PoolerMock{}
 	suite.ctx = context.Background()
-	suite.tupleResponse = test_helpers.NewMockResponse(suite.T(), newMigrationTupleStubResponseBody())
 	suite.testable = NewMigrator(suite.mock, nil, WithLogger(SilentLogger), WithOptions(&Options{
 		MigrationsSpace: "migrations",
-		ReadMode:        pool.ANY,
-		WriteMode:       pool.RW,
+		ReadMode:        pool.ModeAny,
+		WriteMode:       pool.ModeRW,
 	}))
 }
 
@@ -62,10 +60,9 @@ func (suite *MigratorTestSuite) TestMigrateWithoutMigrations() {
 }
 
 func (suite *MigratorTestSuite) TestMigrateCreateMigrationSpaceError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -82,10 +79,9 @@ func (suite *MigratorTestSuite) TestMigrateCreateMigrationSpaceError() {
 }
 
 func (suite *MigratorTestSuite) TestMigrateMigrationWithoutFunction() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -103,11 +99,10 @@ func (suite *MigratorTestSuite) TestMigrateMigrationWithoutFunction() {
 }
 
 func (suite *MigratorTestSuite) TestMigrateMigrationIsAlreadyApplied() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		suite.tupleResponse,
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw(newMigrationTupleStubResponseBody())
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -124,11 +119,10 @@ func (suite *MigratorTestSuite) TestMigrateMigrationIsAlreadyApplied() {
 }
 
 func (suite *MigratorTestSuite) TestMigrateMigrationHasAppliedError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -146,12 +140,11 @@ func (suite *MigratorTestSuite) TestMigrateMigrationHasAppliedError() {
 }
 
 func (suite *MigratorTestSuite) TestMigrateMigrationMigrateError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -169,13 +162,12 @@ func (suite *MigratorTestSuite) TestMigrateMigrationMigrateError() {
 }
 
 func (suite *MigratorTestSuite) TestMigrateSuccess() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		suite.tupleResponse,
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw(newMigrationTupleStubResponseBody())
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -192,11 +184,10 @@ func (suite *MigratorTestSuite) TestMigrateSuccess() {
 }
 
 func (suite *MigratorTestSuite) TestMigrateMigrationInDriveRunMode() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -222,10 +213,9 @@ func (suite *MigratorTestSuite) TestRollbackLastWithoutMigrations() {
 }
 
 func (suite *MigratorTestSuite) TestRollbackMigrationFindLastError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -245,13 +235,11 @@ func (suite *MigratorTestSuite) TestRollbackMigrationFindLastError() {
 
 func (suite *MigratorTestSuite) TestRollbackMigrationNotExists() {
 	body := newMigrationTupleStubResponseBody()
-	resp := test_helpers.NewMockResponse(suite.T(), body)
 	migrationId := fmt.Sprintf("%v", body[0][0])
 
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		resp,
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw(body)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -272,13 +260,11 @@ func (suite *MigratorTestSuite) TestRollbackMigrationNotExists() {
 
 func (suite *MigratorTestSuite) TestRollbackMigrationWithoutRollbackFunction() {
 	body := newMigrationTupleStubResponseBody()
-	resp := test_helpers.NewMockResponse(suite.T(), body)
 	migrationId := fmt.Sprintf("%v", body[0][0])
 
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		resp,
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw(body)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -298,14 +284,12 @@ func (suite *MigratorTestSuite) TestRollbackMigrationWithoutRollbackFunction() {
 
 func (suite *MigratorTestSuite) TestRollbackMigrationRollbackError() {
 	body := newMigrationTupleStubResponseBody()
-	resp := test_helpers.NewMockResponse(suite.T(), body)
 	migrationId := fmt.Sprintf("%v", body[0][0])
 
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		resp,
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw(body)
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -326,15 +310,13 @@ func (suite *MigratorTestSuite) TestRollbackMigrationRollbackError() {
 
 func (suite *MigratorTestSuite) TestRollbackMigrationSuccess() {
 	body := newMigrationTupleStubResponseBody()
-	resp := test_helpers.NewMockResponse(suite.T(), body)
 	migrationId := fmt.Sprintf("%v", body[0][0])
 
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		resp,
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw(body)
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 
@@ -352,13 +334,11 @@ func (suite *MigratorTestSuite) TestRollbackMigrationSuccess() {
 
 func (suite *MigratorTestSuite) TestRollbackMigrationInDriveRunMode() {
 	body := newMigrationTupleStubResponseBody()
-	resp := test_helpers.NewMockResponse(suite.T(), body)
 	migrationId := fmt.Sprintf("%v", body[0][0])
 
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		resp,
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw(body)
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 

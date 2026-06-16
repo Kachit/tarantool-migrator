@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/tarantool/go-iproto"
-	"github.com/tarantool/go-tarantool/v2"
-	"github.com/tarantool/go-tarantool/v2/pool"
-	"github.com/tarantool/go-tarantool/v2/test_helpers"
+	"github.com/tarantool/go-tarantool/v3"
+	"github.com/tarantool/go-tarantool/v3/pool"
+	"github.com/tarantool/go-tarantool/v3/test_helpers"
 	"reflect"
 	"strings"
 	"testing"
@@ -17,20 +17,18 @@ import (
 
 type ExecutorTestSuite struct {
 	suite.Suite
-	ctx           context.Context
-	mock          *mocks.PoolerMock
-	tupleResponse *test_helpers.MockResponse
-	testable      *Executor
+	ctx      context.Context
+	mock     *mocks.PoolerMock
+	testable *Executor
 }
 
 func (suite *ExecutorTestSuite) SetupTest() {
 	suite.mock = &mocks.PoolerMock{}
 	suite.ctx = context.Background()
-	suite.tupleResponse = test_helpers.NewMockResponse(suite.T(), newMigrationTupleStubResponseBody())
 	suite.testable = newExecutor(suite.mock, &Options{
 		MigrationsSpace: "migrations",
-		ReadMode:        pool.ANY,
-		WriteMode:       pool.RW,
+		ReadMode:        pool.ModeAny,
+		WriteMode:       pool.ModeRW,
 	})
 }
 
@@ -46,10 +44,9 @@ func (suite *ExecutorTestSuite) TestApplyMigrationInDryRunMode() {
 }
 
 func (suite *ExecutorTestSuite) TestApplyMigrationWithMigrateError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.applyMigration(suite.ctx, &Migration{
@@ -60,9 +57,9 @@ func (suite *ExecutorTestSuite) TestApplyMigrationWithMigrateError() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), "tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
-	migrateReqRef := reflect.ValueOf(calls[0].Req).Elem()
+	migrateReqRef := reflect.ValueOf(calls[0].Req)
 	migrateReq := migrateReqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, migrateReq)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, migrateReq.Type())
@@ -73,11 +70,10 @@ func (suite *ExecutorTestSuite) TestApplyMigrationWithMigrateError() {
 }
 
 func (suite *ExecutorTestSuite) TestApplyMigrationWithInsertError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.applyMigration(suite.ctx, &Migration{
@@ -88,10 +84,10 @@ func (suite *ExecutorTestSuite) TestApplyMigrationWithInsertError() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), "tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 2)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
-	assert.Equal(suite.T(), pool.RW, calls[1].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[1].Mode)
 
-	migrateReqRef := reflect.ValueOf(calls[0].Req).Elem()
+	migrateReqRef := reflect.ValueOf(calls[0].Req)
 	migrateReq := migrateReqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, migrateReq)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, migrateReq.Type())
@@ -100,7 +96,7 @@ func (suite *ExecutorTestSuite) TestApplyMigrationWithInsertError() {
 	argsField := migrateReqRef.FieldByName("args")
 	assert.Equal(suite.T(), "[]", fmt.Sprintf("%v", argsField))
 
-	insertReqRef := reflect.ValueOf(calls[1].Req).Elem()
+	insertReqRef := reflect.ValueOf(calls[1].Req)
 	insertReq := insertReqRef.Interface().(tarantool.InsertRequest)
 	assert.IsType(suite.T(), tarantool.InsertRequest{}, insertReq)
 	assert.Equal(suite.T(), iproto.IPROTO_INSERT, insertReq.Type())
@@ -109,11 +105,10 @@ func (suite *ExecutorTestSuite) TestApplyMigrationWithInsertError() {
 }
 
 func (suite *ExecutorTestSuite) TestApplyMigrationSuccessful() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		suite.tupleResponse,
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw(newMigrationTupleStubResponseBody())
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.applyMigration(suite.ctx, &Migration{
@@ -123,10 +118,10 @@ func (suite *ExecutorTestSuite) TestApplyMigrationSuccessful() {
 	calls := suite.mock.DoCalls()
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), calls, 2)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
-	assert.Equal(suite.T(), pool.RW, calls[1].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[1].Mode)
 
-	migrateReqRef := reflect.ValueOf(calls[0].Req).Elem()
+	migrateReqRef := reflect.ValueOf(calls[0].Req)
 	migrateReq := migrateReqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, migrateReq)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, migrateReq.Type())
@@ -135,7 +130,7 @@ func (suite *ExecutorTestSuite) TestApplyMigrationSuccessful() {
 	argsField := migrateReqRef.FieldByName("args")
 	assert.Equal(suite.T(), "[]", fmt.Sprintf("%v", argsField))
 
-	insertReqRef := reflect.ValueOf(calls[1].Req).Elem()
+	insertReqRef := reflect.ValueOf(calls[1].Req)
 	insertReq := insertReqRef.Interface().(tarantool.InsertRequest)
 	assert.IsType(suite.T(), tarantool.InsertRequest{}, insertReq)
 	assert.Equal(suite.T(), iproto.IPROTO_INSERT, insertReq.Type())
@@ -155,10 +150,9 @@ func (suite *ExecutorTestSuite) TestRollbackMigrationInDryRunMode() {
 }
 
 func (suite *ExecutorTestSuite) TestRollbackMigrationWithRollbackError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.rollbackMigration(suite.ctx, &Migration{
@@ -169,9 +163,9 @@ func (suite *ExecutorTestSuite) TestRollbackMigrationWithRollbackError() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), "tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
-	migrateReqRef := reflect.ValueOf(calls[0].Req).Elem()
+	migrateReqRef := reflect.ValueOf(calls[0].Req)
 	migrateReq := migrateReqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, migrateReq)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, migrateReq.Type())
@@ -182,11 +176,10 @@ func (suite *ExecutorTestSuite) TestRollbackMigrationWithRollbackError() {
 }
 
 func (suite *ExecutorTestSuite) TestRollbackMigrationWithDeleteError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.rollbackMigration(suite.ctx, &Migration{
@@ -197,10 +190,10 @@ func (suite *ExecutorTestSuite) TestRollbackMigrationWithDeleteError() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), "tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 2)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
-	assert.Equal(suite.T(), pool.RW, calls[1].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[1].Mode)
 
-	migrateReqRef := reflect.ValueOf(calls[0].Req).Elem()
+	migrateReqRef := reflect.ValueOf(calls[0].Req)
 	migrateReq := migrateReqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, migrateReq)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, migrateReq.Type())
@@ -209,7 +202,7 @@ func (suite *ExecutorTestSuite) TestRollbackMigrationWithDeleteError() {
 	argsField := migrateReqRef.FieldByName("args")
 	assert.Equal(suite.T(), "[]", fmt.Sprintf("%v", argsField))
 
-	reqRef := reflect.ValueOf(calls[1].Req).Elem()
+	reqRef := reflect.ValueOf(calls[1].Req)
 	req := reqRef.Interface().(tarantool.DeleteRequest)
 	assert.IsType(suite.T(), tarantool.DeleteRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_DELETE, req.Type())
@@ -220,11 +213,10 @@ func (suite *ExecutorTestSuite) TestRollbackMigrationWithDeleteError() {
 }
 
 func (suite *ExecutorTestSuite) TestRollbackMigrationSuccessful() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.rollbackMigration(suite.ctx, &Migration{
@@ -234,10 +226,10 @@ func (suite *ExecutorTestSuite) TestRollbackMigrationSuccessful() {
 	calls := suite.mock.DoCalls()
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), calls, 2)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
-	assert.Equal(suite.T(), pool.RW, calls[1].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[1].Mode)
 
-	migrateReqRef := reflect.ValueOf(calls[0].Req).Elem()
+	migrateReqRef := reflect.ValueOf(calls[0].Req)
 	migrateReq := migrateReqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, migrateReq)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, migrateReq.Type())
@@ -246,7 +238,7 @@ func (suite *ExecutorTestSuite) TestRollbackMigrationSuccessful() {
 	argsField := migrateReqRef.FieldByName("args")
 	assert.Equal(suite.T(), "[]", fmt.Sprintf("%v", argsField))
 
-	reqRef := reflect.ValueOf(calls[1].Req).Elem()
+	reqRef := reflect.ValueOf(calls[1].Req)
 	req := reqRef.Interface().(tarantool.DeleteRequest)
 	assert.IsType(suite.T(), tarantool.DeleteRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_DELETE, req.Type())
@@ -257,10 +249,9 @@ func (suite *ExecutorTestSuite) TestRollbackMigrationSuccessful() {
 }
 
 func (suite *ExecutorTestSuite) TestHasAppliedMigrationFound() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		suite.tupleResponse,
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw(newMigrationTupleStubResponseBody())
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	found, err := suite.testable.hasAppliedMigration(suite.ctx, "qwerty")
@@ -269,9 +260,9 @@ func (suite *ExecutorTestSuite) TestHasAppliedMigrationFound() {
 	assert.NoError(suite.T(), err)
 	assert.True(suite.T(), found)
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.ANY, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeAny, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.SelectRequest)
 	assert.IsType(suite.T(), tarantool.SelectRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_SELECT, req.Type())
@@ -284,10 +275,9 @@ func (suite *ExecutorTestSuite) TestHasAppliedMigrationFound() {
 }
 
 func (suite *ExecutorTestSuite) TestHasAppliedMigrationNotFound() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	found, err := suite.testable.hasAppliedMigration(suite.ctx, "qwerty")
@@ -296,9 +286,9 @@ func (suite *ExecutorTestSuite) TestHasAppliedMigrationNotFound() {
 	assert.NoError(suite.T(), err)
 	assert.False(suite.T(), found)
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.ANY, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeAny, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.SelectRequest)
 	assert.IsType(suite.T(), tarantool.SelectRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_SELECT, req.Type())
@@ -311,10 +301,9 @@ func (suite *ExecutorTestSuite) TestHasAppliedMigrationNotFound() {
 }
 
 func (suite *ExecutorTestSuite) TestHasAppliedMigrationError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	found, err := suite.testable.hasAppliedMigration(suite.ctx, "qwerty")
@@ -324,9 +313,9 @@ func (suite *ExecutorTestSuite) TestHasAppliedMigrationError() {
 	assert.Equal(suite.T(), "tarantool error", err.Error())
 	assert.False(suite.T(), found)
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.ANY, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeAny, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.SelectRequest)
 	assert.IsType(suite.T(), tarantool.SelectRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_SELECT, req.Type())
@@ -339,10 +328,9 @@ func (suite *ExecutorTestSuite) TestHasAppliedMigrationError() {
 }
 
 func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationFound() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		suite.tupleResponse,
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw(newMigrationTupleStubResponseBody())
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	result, err := suite.testable.findLastAppliedMigration(suite.ctx)
@@ -351,9 +339,9 @@ func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationFound() {
 	assert.NoError(suite.T(), err)
 	assert.NotEmpty(suite.T(), result)
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.ANY, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeAny, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, req.Type())
@@ -364,10 +352,9 @@ func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationFound() {
 }
 
 func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationNotFound() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	result, err := suite.testable.findLastAppliedMigration(suite.ctx)
@@ -377,9 +364,9 @@ func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationNotFound() {
 	assert.Equal(suite.T(), "no applied migrations", err.Error())
 	assert.Empty(suite.T(), result)
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.ANY, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeAny, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, req.Type())
@@ -390,10 +377,9 @@ func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationNotFound() {
 }
 
 func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	result, err := suite.testable.findLastAppliedMigration(suite.ctx)
@@ -403,9 +389,9 @@ func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationError() {
 	assert.Equal(suite.T(), "tarantool error", err.Error())
 	assert.Empty(suite.T(), result)
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.ANY, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeAny, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, req.Type())
@@ -416,10 +402,9 @@ func (suite *ExecutorTestSuite) TestFindLastAppliedMigrationError() {
 }
 
 func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsSuccess() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.createMigrationsSpaceIfNotExists(suite.ctx, createMigrationsSpacePath)
@@ -431,9 +416,9 @@ func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsSuccess() {
 	calls := suite.mock.DoCalls()
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, req.Type())
@@ -452,10 +437,9 @@ func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsWrongMigrati
 }
 
 func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.createMigrationsSpaceIfNotExists(suite.ctx, createMigrationsSpacePath)
@@ -468,9 +452,9 @@ func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsError() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), "tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, req.Type())
@@ -481,10 +465,9 @@ func (suite *ExecutorTestSuite) TestCreateMigrationsSpaceIfNotExistsError() {
 }
 
 func (suite *ExecutorTestSuite) TestInsertMigrationSuccess() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		suite.tupleResponse,
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw(newMigrationTupleStubResponseBody())
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.insertMigration(suite.ctx, "qwerty")
@@ -492,9 +475,9 @@ func (suite *ExecutorTestSuite) TestInsertMigrationSuccess() {
 	calls := suite.mock.DoCalls()
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.InsertRequest)
 	assert.IsType(suite.T(), tarantool.InsertRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_INSERT, req.Type())
@@ -503,10 +486,9 @@ func (suite *ExecutorTestSuite) TestInsertMigrationSuccess() {
 }
 
 func (suite *ExecutorTestSuite) TestInsertMigrationError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.insertMigration(suite.ctx, "qwerty")
@@ -515,9 +497,9 @@ func (suite *ExecutorTestSuite) TestInsertMigrationError() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), "tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.InsertRequest)
 	assert.IsType(suite.T(), tarantool.InsertRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_INSERT, req.Type())
@@ -526,10 +508,9 @@ func (suite *ExecutorTestSuite) TestInsertMigrationError() {
 }
 
 func (suite *ExecutorTestSuite) TestDeleteMigrationSuccess() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.deleteMigration(suite.ctx, "qwerty")
@@ -537,9 +518,9 @@ func (suite *ExecutorTestSuite) TestDeleteMigrationSuccess() {
 	calls := suite.mock.DoCalls()
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.DeleteRequest)
 	assert.IsType(suite.T(), tarantool.DeleteRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_DELETE, req.Type())
@@ -550,10 +531,9 @@ func (suite *ExecutorTestSuite) TestDeleteMigrationSuccess() {
 }
 
 func (suite *ExecutorTestSuite) TestDeleteMigrationError() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	err := suite.testable.deleteMigration(suite.ctx, "qwerty")
@@ -562,9 +542,9 @@ func (suite *ExecutorTestSuite) TestDeleteMigrationError() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), "tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.DeleteRequest)
 	assert.IsType(suite.T(), tarantool.DeleteRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_DELETE, req.Type())
@@ -575,10 +555,9 @@ func (suite *ExecutorTestSuite) TestDeleteMigrationError() {
 }
 
 func (suite *ExecutorTestSuite) TestNewGenericMigrateFunctionSuccessExecute() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		test_helpers.NewMockResponse(suite.T(), [][]interface{}{}),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	mgrFunc := NewGenericMigrateFunction("box.info")
@@ -586,9 +565,9 @@ func (suite *ExecutorTestSuite) TestNewGenericMigrateFunctionSuccessExecute() {
 	calls := suite.mock.DoCalls()
 	assert.NoError(suite.T(), err)
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, req.Type())
@@ -597,10 +576,9 @@ func (suite *ExecutorTestSuite) TestNewGenericMigrateFunctionSuccessExecute() {
 }
 
 func (suite *ExecutorTestSuite) TestNewGenericMigrateFunctionErrorExecute() {
-	mockDoer := test_helpers.NewMockDoer(suite.T(),
-		fmt.Errorf("tarantool error"),
-	)
-	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) *tarantool.Future {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("tarantool error"))
+	suite.mock.DoFunc = func(req tarantool.Request, mode pool.Mode) tarantool.Future {
 		return mockDoer.Do(req)
 	}
 	mgrFunc := NewGenericMigrateFunction("box.info")
@@ -609,9 +587,9 @@ func (suite *ExecutorTestSuite) TestNewGenericMigrateFunctionErrorExecute() {
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), "tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 1)
-	assert.Equal(suite.T(), pool.RW, calls[0].Mode)
+	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
-	reqRef := reflect.ValueOf(calls[0].Req).Elem()
+	reqRef := reflect.ValueOf(calls[0].Req)
 	req := reqRef.Interface().(tarantool.EvalRequest)
 	assert.IsType(suite.T(), tarantool.EvalRequest{}, req)
 	assert.Equal(suite.T(), iproto.IPROTO_EVAL, req.Type())
