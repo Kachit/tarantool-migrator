@@ -40,7 +40,7 @@ package migrations
 
 import (
 	tarantool_migrator "github.com/kachit/tarantool-migrator"
-	"github.com/tarantool/go-tarantool/v2/pool"
+	"github.com/tarantool/go-tarantool/v3/pool"
 	"context"
 )
 
@@ -78,8 +78,8 @@ import (
     "fmt"
     "time"
 	"context"
-	"github.com/tarantool/go-tarantool/v2"
-	"github.com/tarantool/go-tarantool/v2/pool"
+	"github.com/tarantool/go-tarantool/v3"
+	"github.com/tarantool/go-tarantool/v3/pool"
 )
 
 func main(){
@@ -97,13 +97,12 @@ func main(){
 		Password: config.Password,
 	}
 	opts := tarantool.Opts{
-		Timeout:   time.Second,
-		Reconnect: 2 * time.Second,
+		Timeout: time.Second,
 	}
-	
+
 	//connect to tarantool pool
 	instance1 := pool.Instance{Name: "your-instance-address", Dialer: dialer, Opts: opts}
-	tt, err :=  pool.Connect(ctx, []pool.Instance{
+	tt, err := pool.New(ctx, []pool.Instance{
 		instance1,
 	})
 	if err != nil {
