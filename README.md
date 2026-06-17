@@ -2,7 +2,7 @@
 [![Go Test](https://github.com/Kachit/tarantool-migrator/actions/workflows/tests.yml/badge.svg)](https://github.com/Kachit/tarantool-migrator/actions)
 [![Codecov](https://codecov.io/github/Kachit/tarantool-migrator/graph/badge.svg)](https://codecov.io/github/Kachit/tarantool-migrator)
 [![Go Report Card](https://goreportcard.com/badge/github.com/kachit/tarantool-migrator)](https://goreportcard.com/report/github.com/kachit/tarantool-migrator)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/Kachit/tarantool-migrator)](https://go.dev/doc/go1.20)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/Kachit/tarantool-migrator)](https://go.dev/doc/go1.24)
 [![Release](https://img.shields.io/github/v/release/Kachit/tarantool-migrator.svg)](https://github.com/Kachit/tarantool-migrator/releases)
 [![GoDoc](https://img.shields.io/badge/go.dev-reference-brightgreen?logo=go&logoColor=white&style=flat)](https://pkg.go.dev/github.com/kachit/tarantool-migrator)
 [![License](https://img.shields.io/github/license/Kachit/tarantool-migrator)](https://github.com/Kachit/tarantool-migrator/blob/main/LICENSE)
@@ -48,11 +48,11 @@ var Migrations = tarantool_migrator.MigrationsCollection{
 	&tarantool_migrator.Migration{
 		ID: "202410082345_test_migration_1",
 		Migrate: func(ctx context.Context, pooler pool.Pooler, options *tarantool_migrator.Options) error {
-			//your migration Up code here
+			// your migration Up code here
 			return nil
 		},
 		Rollback: func(ctx context.Context, pooler pool.Pooler, options *tarantool_migrator.Options) error {
-			//your migration Down code here
+			// your migration Down code here
 			return nil
 		},
 	},
@@ -83,7 +83,7 @@ import (
 )
 
 func main(){
-	//Your tarantool config
+	// Your tarantool config
 	config := &TarantoolConfig{
 		Host:     "127.0.0.1",
 		Port:     3301,
@@ -100,7 +100,7 @@ func main(){
 		Timeout: time.Second,
 	}
 
-	//connect to tarantool pool
+	// connect to tarantool pool
 	instance1 := pool.Instance{Name: "your-instance-address", Dialer: dialer, Opts: opts}
 	tt, err := pool.New(ctx, []pool.Instance{
 		instance1,
@@ -126,14 +126,14 @@ var LuaFs embed.FS
 
 func main(){
 	ctx := context.Background()
-	//load migrations list from embed
+	// load migrations list from embed
 	fsLoader := tarantool_migrator.NewEmbedFsLoader(LuaFs)
 	migrations, err := fsLoader.LoadMigrations("migrations")
 	if err != nil {
 		panic(err)
 	}
 
-	//migrate
+	// migrate
 	migrator := tarantool_migrator.NewMigrator(tt, migrations)
 	err = migrator.Migrate(ctx)
 	if err != nil {
@@ -157,14 +157,14 @@ var LuaFs embed.FS
 
 func main(){
 	ctx := context.Background()
-	//load migrations list from embed
+	// load migrations list from embed
 	fsLoader := tarantool_migrator.NewEmbedFsLoader(LuaFs)
 	migrations, err := fsLoader.LoadMigrations("migrations")
 	if err != nil {
 		panic(err)
 	}
 
-	//rollback last applied migration (202410091201_test_migration_2)
+	// rollback last applied migration (202410091201_test_migration_2)
 	migrator := tarantool_migrator.NewMigrator(tt, migrations)
 	err = migrator.RollbackLast(ctx)
 	if err != nil {

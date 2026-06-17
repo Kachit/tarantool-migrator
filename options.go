@@ -19,7 +19,8 @@ type Options struct {
 }
 
 var DefaultOptions = Options{
-	MigrationsSpace: "migrations",
-	ReadMode:        pool.ModeAny,
-	WriteMode:       pool.ModeRW,
+	TransactionsEnabled: true,
+	MigrationsSpace:     "migrations",
+	ReadMode:            pool.ModeAny,
+	WriteMode:           pool.ModeRW,
 }

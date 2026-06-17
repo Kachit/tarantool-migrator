@@ -134,7 +134,7 @@ Image:    tarantool/tarantool:3.7
 Port:     127.0.0.1:3301:3301
 User:     migrator
 Password: migrator-pwd
-Config:   docker/config.yaml
+Config:   .docker/config.yaml
 ```
 
 ```bash

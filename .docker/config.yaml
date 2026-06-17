@@ -7,3 +7,6 @@ credentials:
 iproto:
   listen:
     - uri: '0.0.0.0:3301'
+
+memtx:
+  use_mvcc_engine: true

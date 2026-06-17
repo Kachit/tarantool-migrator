@@ -4,7 +4,7 @@ services:
     ports:
       - "127.0.0.1:3301:3301"
     volumes:
-      - ./docker/config.yaml:/etc/tarantool/config.yaml
+      - ./.docker/config.yaml:/etc/tarantool/config.yaml
       - tarantool-data:/var/lib/tarantool
     restart: unless-stopped
 
