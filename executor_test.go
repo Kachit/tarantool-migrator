@@ -597,6 +597,171 @@ func (suite *ExecutorTestSuite) TestNewGenericMigrateFunctionErrorExecute() {
 	assert.Equal(suite.T(), "box.info", exprField.String())
 }
 
+func (suite *ExecutorTestSuite) TestApplyMigrationWithTransactionsEnabledNewStreamError() {
+	suite.testable.opts.TransactionsEnabled = true
+	suite.mock.NewStreamFunc = func(_ pool.Mode) (*tarantool.Stream, error) {
+		return nil, fmt.Errorf("stream error")
+	}
+
+	err := suite.testable.applyMigration(suite.ctx, &Migration{
+		ID:      "tx-new-stream-error",
+		Migrate: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "stream error", err.Error())
+}
+
+func (suite *ExecutorTestSuite) TestRollbackMigrationWithTransactionsEnabledNewStreamError() {
+	suite.testable.opts.TransactionsEnabled = true
+	suite.mock.NewStreamFunc = func(_ pool.Mode) (*tarantool.Stream, error) {
+		return nil, fmt.Errorf("stream error")
+	}
+
+	err := suite.testable.rollbackMigration(suite.ctx, &Migration{
+		ID:       "tx-rollback-stream-error",
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "stream error", err.Error())
+}
+
+func (suite *ExecutorTestSuite) TestApplyMigrationInTxBeginError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("begin error"))
+
+	err := suite.testable.applyMigrationInTx(suite.ctx, mockDoer, &Migration{
+		ID:      "tx-begin-error",
+		Migrate: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "begin error", err.Error())
+}
+
+func (suite *ExecutorTestSuite) TestApplyMigrationInTxMigrateError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseError(fmt.Errorf("migrate error"))
+	mockDoer.AddResponseRaw([][]interface{}{})
+
+	err := suite.testable.applyMigrationInTx(suite.ctx, mockDoer, &Migration{
+		ID:      "tx-migrate-error",
+		Migrate: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "migrate error", err.Error())
+}
+
+func (suite *ExecutorTestSuite) TestApplyMigrationInTxInsertError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseError(fmt.Errorf("insert error"))
+	mockDoer.AddResponseRaw([][]interface{}{})
+
+	err := suite.testable.applyMigrationInTx(suite.ctx, mockDoer, &Migration{
+		ID:      "tx-insert-error",
+		Migrate: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "insert error", err.Error())
+}
+
+func (suite *ExecutorTestSuite) TestApplyMigrationInTxCommitError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw(newMigrationTupleStubResponseBody())
+	mockDoer.AddResponseError(fmt.Errorf("commit error"))
+	mockDoer.AddResponseRaw([][]interface{}{})
+
+	err := suite.testable.applyMigrationInTx(suite.ctx, mockDoer, &Migration{
+		ID:      "tx-commit-error",
+		Migrate: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "commit error", err.Error())
+}
+
+func (suite *ExecutorTestSuite) TestApplyMigrationInTxSuccess() {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw(newMigrationTupleStubResponseBody())
+	mockDoer.AddResponseRaw([][]interface{}{})
+
+	err := suite.testable.applyMigrationInTx(suite.ctx, mockDoer, &Migration{
+		ID:      "tx-apply-success",
+		Migrate: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.NoError(suite.T(), err)
+}
+
+func (suite *ExecutorTestSuite) TestRollbackMigrationInTxBeginError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseError(fmt.Errorf("begin error"))
+
+	err := suite.testable.rollbackMigrationInTx(suite.ctx, mockDoer, &Migration{
+		ID:       "tx-rollback-begin-error",
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "begin error", err.Error())
+}
+
+func (suite *ExecutorTestSuite) TestRollbackMigrationInTxRollbackFuncError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseError(fmt.Errorf("rollback func error"))
+	mockDoer.AddResponseRaw([][]interface{}{})
+
+	err := suite.testable.rollbackMigrationInTx(suite.ctx, mockDoer, &Migration{
+		ID:       "tx-rollback-func-error",
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "rollback func error", err.Error())
+}
+
+func (suite *ExecutorTestSuite) TestRollbackMigrationInTxDeleteError() {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseError(fmt.Errorf("delete error"))
+	mockDoer.AddResponseRaw([][]interface{}{})
+
+	err := suite.testable.rollbackMigrationInTx(suite.ctx, mockDoer, &Migration{
+		ID:       "tx-rollback-delete-error",
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), "delete error", err.Error())
+}
+
+func (suite *ExecutorTestSuite) TestRollbackMigrationInTxSuccess() {
+	mockDoer := test_helpers.NewMockDoer(suite.T())
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+	mockDoer.AddResponseRaw([][]interface{}{})
+
+	err := suite.testable.rollbackMigrationInTx(suite.ctx, mockDoer, &Migration{
+		ID:       "tx-rollback-success",
+		Rollback: NewGenericMigrateFunction("box.info"),
+	})
+
+	assert.NoError(suite.T(), err)
+}
+
 func TestExecutorTestSuite(t *testing.T) {
 	suite.Run(t, new(ExecutorTestSuite))
 }
