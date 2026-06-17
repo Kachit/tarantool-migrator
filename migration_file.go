@@ -11,7 +11,6 @@ const MigrationFilePrefixExcluded = "--"
 
 type MigrationFile struct {
 	path string
-	file fs.DirEntry
 	name string
 	cmd  string
 }
@@ -29,18 +28,28 @@ func (mf *MigrationFile) GetCmd() string {
 }
 
 func NewMigrationFile(path string, file fs.DirEntry) (*MigrationFile, error) {
-	mgrParts := strings.Split(file.Name(), ".")
-	if len(mgrParts) < 3 {
+	fileName := file.Name()
+	if !strings.HasSuffix(fileName, ".lua") {
 		return nil, ErrWrongMigrationFileFormat
 	}
-	if mgrParts[1] != MigrationFileSuffixUp && mgrParts[1] != MigrationFileSuffixDown {
+
+	baseName := strings.TrimSuffix(fileName, ".lua")
+
+	lastDot := strings.LastIndex(baseName, ".")
+	if lastDot < 0 {
+		return nil, ErrWrongMigrationFileFormat
+	}
+
+	name := baseName[:lastDot]
+	cmd := baseName[lastDot+1:]
+
+	if cmd != MigrationFileSuffixUp && cmd != MigrationFileSuffixDown {
 		return nil, ErrWrongMigrationCmdFormat
 	}
 
 	return &MigrationFile{
-		path: path + "/" + file.Name(),
-		file: file,
-		name: mgrParts[0],
-		cmd:  mgrParts[1],
+		path: path + "/" + fileName,
+		name: name,
+		cmd:  cmd,
 	}, nil
 }

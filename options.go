@@ -1,6 +1,6 @@
 package tarantool_migrator
 
-import "github.com/tarantool/go-tarantool/v2/pool"
+import "github.com/tarantool/go-tarantool/v3/pool"
 
 const createMigrationsSpacePath = "lua/migrations/create_migrations_space.up.lua"
 
@@ -8,8 +8,6 @@ const createMigrationsSpacePath = "lua/migrations/create_migrations_space.up.lua
 type Options struct {
 	// Migrations space
 	MigrationsSpace string `json:"migrations_space"`
-	// Tarantool instances list
-	Instances []string `json:"instances"`
 	// Dry run enabled flag
 	DryRun bool `json:"dry_run"`
 	// Transactions enabled flag
@@ -21,7 +19,8 @@ type Options struct {
 }
 
 var DefaultOptions = Options{
-	MigrationsSpace: "migrations",
-	ReadMode:        pool.ANY,
-	WriteMode:       pool.RW,
+	TransactionsEnabled: true,
+	MigrationsSpace:     "migrations",
+	ReadMode:            pool.ModeAny,
+	WriteMode:           pool.ModeRW,
 }

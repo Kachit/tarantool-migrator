@@ -2,8 +2,8 @@ package tarantool_migrator
 
 import (
 	"context"
-	"github.com/tarantool/go-tarantool/v2"
-	"github.com/tarantool/go-tarantool/v2/pool"
+	"github.com/tarantool/go-tarantool/v3"
+	"github.com/tarantool/go-tarantool/v3/pool"
 )
 
 // MigrateFunc is the func signature for migrating.
@@ -26,6 +26,7 @@ func (mg *Migration) isValidForMigrate() error {
 	if len(mg.ID) == 0 {
 		return ErrMissingID
 	}
+
 	if mg.Migrate == nil {
 		return ErrMissingMigrateFunc
 	}
@@ -37,6 +38,7 @@ func (mg *Migration) isValidForRollback() error {
 	if len(mg.ID) == 0 {
 		return ErrMissingID
 	}
+
 	if mg.Rollback == nil {
 		return ErrMissingRollbackFunc
 	}
@@ -47,10 +49,7 @@ func (mg *Migration) isValidForRollback() error {
 func NewGenericMigrateFunction(req string) func(context.Context, pool.Pooler, *Options) error {
 	return func(ctx context.Context, tt pool.Pooler, opts *Options) error {
 		_, err := tt.Do(tarantool.NewEvalRequest(req).Context(ctx), opts.WriteMode).Get()
-		if err != nil {
-			return err
-		}
 
-		return nil
+		return err
 	}
 }

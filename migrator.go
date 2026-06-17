@@ -3,12 +3,15 @@ package tarantool_migrator
 import (
 	"context"
 	"fmt"
-	"github.com/tarantool/go-tarantool/v2/pool"
+	"log/slog"
 	"time"
+
+	"github.com/tarantool/go-tarantool/v3/pool"
 )
 
 func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options ...func(*Migrator)) *Migrator {
 	opts := DefaultOptions
+
 	m := &Migrator{
 		logger:     DefaultLogger,
 		opts:       &opts,
@@ -17,6 +20,7 @@ func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options ...fun
 	for _, opt := range options {
 		opt(m)
 	}
+
 	m.ex = newExecutor(tt, m.opts)
 
 	return m
@@ -25,41 +29,48 @@ func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options ...fun
 type Migrator struct {
 	ex         *Executor
 	opts       *Options
-	logger     Logger
+	logger     *slog.Logger
 	migrations MigrationsCollection
 }
 
 func (m *Migrator) Migrate(ctx context.Context) error {
-	m.logger.Debug(ctx, fmt.Sprintf(`started "migrate" command with "%d" migrations and options:`,
-		len(m.migrations)), m.opts)
+	m.logger.DebugContext(ctx, "started migrate command", "count", len(m.migrations), "options", m.opts)
+
 	if m.migrations.IsEmpty() {
 		return ErrNoDefinedMigrations
 	}
+
 	err := m.ex.createMigrationsSpaceIfNotExists(ctx, createMigrationsSpacePath)
 	if err != nil {
 		return fmt.Errorf(`init migrations space error: %w`, err)
 	}
+
 	for _, migration := range m.migrations {
-		m.logger.Info(ctx, fmt.Sprintf(`migration "%s" process started`, migration.ID))
+		m.logger.InfoContext(ctx, "migration process started", "id", migration.ID)
+
 		err = migration.isValidForMigrate()
 		if err != nil {
 			return fmt.Errorf(`migration "%s" error: %w`, migration.ID, err)
 		}
+
 		exists, err := m.ex.hasAppliedMigration(ctx, migration.ID)
 		if err != nil {
 			return fmt.Errorf(`migration "%s" error: %w`, migration.ID, err)
 		}
+
 		if !exists {
 			startedAt := time.Now().UTC()
+
 			err = m.ex.applyMigration(ctx, migration)
 			if err != nil {
 				return fmt.Errorf(`migration "%s" error: %w`, migration.ID, err)
 			}
+
 			migratedAt := time.Now().UTC().Sub(startedAt)
-			m.logger.Info(ctx, fmt.Sprintf(`migration "%s" successfully migrated in %.3fms`,
-				migration.ID, formatDurationToMs(migratedAt)))
+			m.logger.InfoContext(ctx, "migration successfully migrated",
+				"id", migration.ID, "duration_ms", formatDurationToMs(migratedAt))
 		} else {
-			m.logger.Info(ctx, fmt.Sprintf(`migration "%s" is already migrated`, migration.ID))
+			m.logger.InfoContext(ctx, "migration is already migrated", "id", migration.ID)
 		}
 	}
 
@@ -67,37 +78,44 @@ func (m *Migrator) Migrate(ctx context.Context) error {
 }
 
 func (m *Migrator) RollbackLast(ctx context.Context) error {
-	m.logger.Debug(ctx, fmt.Sprintf(`started "rollback-last" command with "%d" migrations and options:`,
-		len(m.migrations)), m.opts)
+	m.logger.DebugContext(ctx, "started rollback-last command", "count", len(m.migrations), "options", m.opts)
+
 	if m.migrations.IsEmpty() {
 		return ErrNoDefinedMigrations
 	}
+
 	mgr, err := m.ex.findLastAppliedMigration(ctx)
 	if err != nil {
 		return fmt.Errorf(`find applied migration error: %w`, err)
 	}
-	m.logger.Info(ctx, fmt.Sprintf(`migration "%s" found for rollback`, mgr.ID))
+
+	m.logger.InfoContext(ctx, "migration found for rollback", "id", mgr.ID)
+
 	migration, err := m.migrations.Find(mgr.ID)
 	if err != nil {
 		return fmt.Errorf(`migration "%s" error: %w`, mgr.ID, err)
 	}
+
 	err = migration.isValidForRollback()
 	if err != nil {
 		return fmt.Errorf(`migration "%s" error: %w`, mgr.ID, err)
 	}
+
 	startedAt := time.Now().UTC()
+
 	err = m.ex.rollbackMigration(ctx, migration)
 	if err != nil {
 		return fmt.Errorf(`migration "%s" error: %w`, mgr.ID, err)
 	}
+
 	rolledAt := time.Now().UTC().Sub(startedAt)
-	m.logger.Info(ctx, fmt.Sprintf(`migration "%s" successfully rollbacked in %.3fms`,
-		mgr.ID, formatDurationToMs(rolledAt)))
+	m.logger.InfoContext(ctx, "migration successfully rolled back",
+		"id", mgr.ID, "duration_ms", formatDurationToMs(rolledAt))
 
 	return nil
 }
 
-func WithLogger(lg Logger) func(migrator *Migrator) {
+func WithLogger(lg *slog.Logger) func(migrator *Migrator) {
 	return func(m *Migrator) {
 		m.logger = lg
 	}
