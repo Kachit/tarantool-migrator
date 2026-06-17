@@ -49,10 +49,7 @@ func (mg *Migration) isValidForRollback() error {
 func NewGenericMigrateFunction(req string) func(context.Context, pool.Pooler, *Options) error {
 	return func(ctx context.Context, tt pool.Pooler, opts *Options) error {
 		_, err := tt.Do(tarantool.NewEvalRequest(req).Context(ctx), opts.WriteMode).Get()
-		if err != nil {
-			return err
-		}
 
-		return nil
+		return err
 	}
 }

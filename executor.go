@@ -2,10 +2,11 @@ package tarantool_migrator
 
 import (
 	"context"
-	"github.com/tarantool/go-tarantool/v3"
-	"github.com/tarantool/go-tarantool/v3/pool"
 	"strings"
 	"time"
+
+	"github.com/tarantool/go-tarantool/v3"
+	"github.com/tarantool/go-tarantool/v3/pool"
 )
 
 type Executor struct {
@@ -27,11 +28,8 @@ func (e *Executor) createMigrationsSpaceIfNotExists(ctx context.Context, path st
 	migrationSpaceRequest = strings.ReplaceAll(migrationSpaceRequest, "_migrations_space_", e.opts.MigrationsSpace)
 
 	_, err = e.tt.Do(tarantool.NewEvalRequest(migrationSpaceRequest).Context(ctx), e.opts.WriteMode).Get()
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func (e *Executor) hasAppliedMigration(ctx context.Context, migrationID string) (bool, error) {
@@ -50,26 +48,20 @@ func (e *Executor) hasAppliedMigration(ctx context.Context, migrationID string) 
 func (e *Executor) insertMigration(ctx context.Context, migrationID string) error {
 	_, err := e.tt.Do(tarantool.NewInsertRequest(e.opts.MigrationsSpace).Context(ctx).Tuple([]interface{}{
 		migrationID,
-		time.Now().UTC().String(),
+		time.Now().UTC().Format(time.RFC3339),
 	}),
 		e.opts.WriteMode,
 	).Get()
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func (e *Executor) deleteMigration(ctx context.Context, migrationID string) error {
 	req := tarantool.NewDeleteRequest(e.opts.MigrationsSpace).Context(ctx).Key([]any{migrationID})
 
 	_, err := e.tt.Do(req, e.opts.WriteMode).Get()
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func (e *Executor) applyMigration(ctx context.Context, migration *Migration) error {
@@ -77,17 +69,11 @@ func (e *Executor) applyMigration(ctx context.Context, migration *Migration) err
 		return nil
 	}
 
-	err := migration.Migrate(ctx, e.tt, e.opts)
-	if err != nil {
+	if err := migration.Migrate(ctx, e.tt, e.opts); err != nil {
 		return err
 	}
 
-	err = e.insertMigration(ctx, migration.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return e.insertMigration(ctx, migration.ID)
 }
 
 func (e *Executor) rollbackMigration(ctx context.Context, migration *Migration) error {
@@ -95,17 +81,11 @@ func (e *Executor) rollbackMigration(ctx context.Context, migration *Migration) 
 		return nil
 	}
 
-	err := migration.Rollback(ctx, e.tt, e.opts)
-	if err != nil {
+	if err := migration.Rollback(ctx, e.tt, e.opts); err != nil {
 		return err
 	}
 
-	err = e.deleteMigration(ctx, migration.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return e.deleteMigration(ctx, migration.ID)
 }
 
 func (e *Executor) findLastAppliedMigration(ctx context.Context) (*migrationTuple, error) {
