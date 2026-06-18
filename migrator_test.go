@@ -152,7 +152,7 @@ func (suite *MigratorTestSuite) TestMigrateMigrationMigrateError() {
 	err := suite.testable.Migrate(suite.ctx)
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), `migration "migrate-error" error: user migrate: tarantool error`, err.Error())
+	assert.Equal(suite.T(), `migration "migrate-error" error: user migrate: eval lua: tarantool error`, err.Error())
 	assert.Len(suite.T(), calls, 3)
 }
 
@@ -297,7 +297,7 @@ func (suite *MigratorTestSuite) TestRollbackMigrationRollbackError() {
 	err := suite.testable.RollbackLast(suite.ctx)
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), fmt.Sprintf(`migration "%s" error: user rollback: tarantool error`,
+	assert.Equal(suite.T(), fmt.Sprintf(`migration "%s" error: user rollback: eval lua: tarantool error`,
 		migrationId),
 		err.Error())
 	assert.Len(suite.T(), calls, 2)

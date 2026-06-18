@@ -60,7 +60,7 @@ func (suite *NoTxExecutorTestSuite) TestApplyMigrationWithMigrateError() {
 	})
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), "user migrate: tarantool error", err.Error())
+	assert.Equal(suite.T(), "user migrate: eval lua: tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 1)
 	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
@@ -166,7 +166,7 @@ func (suite *NoTxExecutorTestSuite) TestRollbackMigrationWithRollbackError() {
 	})
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), "user rollback: tarantool error", err.Error())
+	assert.Equal(suite.T(), "user rollback: eval lua: tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 1)
 	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
@@ -284,7 +284,7 @@ func (suite *NoTxExecutorTestSuite) TestNewGenericMigrateFunctionErrorExecute() 
 	err := mgrFunc(suite.ctx, suite.mock, *suite.testable.opts)
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), "tarantool error", err.Error())
+	assert.Equal(suite.T(), "eval lua: tarantool error", err.Error())
 	assert.Len(suite.T(), calls, 1)
 	assert.Equal(suite.T(), pool.ModeRW, calls[0].Mode)
 
