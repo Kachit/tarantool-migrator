@@ -19,21 +19,21 @@ func (suite *EmbedFsLoaderTestSuite) TestLoadMigrationsInvalidWrongMigrationsPat
 	result, err := suite.testable.LoadMigrations("stubs")
 	assert.Nil(suite.T(), result)
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), "open stubs: file does not exist", err.Error())
+	assert.Equal(suite.T(), "read migrations dir: open stubs: file does not exist", err.Error())
 }
 
 func (suite *EmbedFsLoaderTestSuite) TestLoadMigrationsInvalidWrongMigrationFilename() {
 	result, err := suite.testable.LoadMigrations("lua/stubs/invalid-wrong-migration-filename")
 	assert.Nil(suite.T(), result)
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), "wrong migration file format", err.Error())
+	assert.Equal(suite.T(), `parse migration file "202410082345_test_migration_1": wrong migration file format`, err.Error())
 }
 
 func (suite *EmbedFsLoaderTestSuite) TestLoadMigrationsInvalidWrongMigrationCmd() {
 	result, err := suite.testable.LoadMigrations("lua/stubs/invalid-wrong-migration-cmd")
 	assert.Nil(suite.T(), result)
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), "wrong migration cmd format", err.Error())
+	assert.Equal(suite.T(), `parse migration file "202410082345_test_migration_1.test.lua": wrong migration cmd format`, err.Error())
 }
 
 func (suite *EmbedFsLoaderTestSuite) TestLoadMigrationsValidEmptyDir() {

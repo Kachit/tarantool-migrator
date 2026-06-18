@@ -2,15 +2,16 @@ package tarantool_migrator
 
 import (
 	"context"
+	"fmt"
 	"github.com/tarantool/go-tarantool/v3"
 	"github.com/tarantool/go-tarantool/v3/pool"
 )
 
 // MigrateFunc is the func signature for migrating.
-type MigrateFunc func(context.Context, pool.Pooler, *Options) error
+type MigrateFunc func(context.Context, pool.Pooler, Options) error
 
 // RollbackFunc is the func signature for rollback.
-type RollbackFunc func(context.Context, pool.Pooler, *Options) error
+type RollbackFunc func(context.Context, pool.Pooler, Options) error
 
 // Migration represents a database migration (a modification to be made on the database).
 type Migration struct {
@@ -46,10 +47,13 @@ func (mg *Migration) isValidForRollback() error {
 	return nil
 }
 
-func NewGenericMigrateFunction(req string) func(context.Context, pool.Pooler, *Options) error {
-	return func(ctx context.Context, tt pool.Pooler, opts *Options) error {
+func NewGenericMigrateFunction(req string) func(context.Context, pool.Pooler, Options) error {
+	return func(ctx context.Context, tt pool.Pooler, opts Options) error {
 		_, err := tt.Do(tarantool.NewEvalRequest(req).Context(ctx), opts.WriteMode).Get()
+		if err != nil {
+			return fmt.Errorf("eval lua: %w", err)
+		}
 
-		return err
+		return nil
 	}
 }

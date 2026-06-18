@@ -8,5 +8,9 @@ iproto:
   listen:
     - uri: '0.0.0.0:3301'
 
-memtx:
-  use_mvcc_engine: true
+groups:
+  group-001:
+    replicasets:
+      replicaset-001:
+        instances:
+          instance-001: {}

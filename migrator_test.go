@@ -38,12 +38,12 @@ func (suite *MigratorTestSuite) TestChangeLogger() {
 }
 
 func (suite *MigratorTestSuite) TestChangeOptions() {
-	assert.False(suite.T(), suite.testable.opts.TransactionsEnabled)
+	assert.False(suite.T(), suite.testable.opts.DryRun)
 	opts := &Options{}
-	opts.TransactionsEnabled = true
+	opts.DryRun = true
 	fn := WithOptions(opts)
 	fn(suite.testable)
-	assert.True(suite.T(), suite.testable.opts.TransactionsEnabled)
+	assert.True(suite.T(), suite.testable.opts.DryRun)
 }
 
 func (suite *MigratorTestSuite) TestMigrateWithoutMigrations() {
@@ -69,7 +69,7 @@ func (suite *MigratorTestSuite) TestMigrateCreateMigrationSpaceError() {
 	err := suite.testable.Migrate(suite.ctx)
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), `init migrations space error: tarantool error`, err.Error())
+	assert.Equal(suite.T(), `init migrations space error: exec create migrations space: tarantool error`, err.Error())
 	assert.Len(suite.T(), calls, 1)
 }
 
@@ -130,7 +130,7 @@ func (suite *MigratorTestSuite) TestMigrateMigrationHasAppliedError() {
 	err := suite.testable.Migrate(suite.ctx)
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), `migration "migration-has-applied-error" error: tarantool error`, err.Error())
+	assert.Equal(suite.T(), `migration "migration-has-applied-error" error: check applied migration: tarantool error`, err.Error())
 	assert.Len(suite.T(), calls, 2)
 }
 
@@ -152,7 +152,7 @@ func (suite *MigratorTestSuite) TestMigrateMigrationMigrateError() {
 	err := suite.testable.Migrate(suite.ctx)
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), `migration "migrate-error" error: tarantool error`, err.Error())
+	assert.Equal(suite.T(), `migration "migrate-error" error: user migrate: eval lua: tarantool error`, err.Error())
 	assert.Len(suite.T(), calls, 3)
 }
 
@@ -223,7 +223,7 @@ func (suite *MigratorTestSuite) TestRollbackMigrationFindLastError() {
 	err := suite.testable.RollbackLast(suite.ctx)
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), `find applied migration error: tarantool error`,
+	assert.Equal(suite.T(), `find applied migration error: find last applied migration: tarantool error`,
 		err.Error())
 	assert.Len(suite.T(), calls, 1)
 }
@@ -297,7 +297,7 @@ func (suite *MigratorTestSuite) TestRollbackMigrationRollbackError() {
 	err := suite.testable.RollbackLast(suite.ctx)
 	calls := suite.mock.DoCalls()
 	assert.Error(suite.T(), err)
-	assert.Equal(suite.T(), fmt.Sprintf(`migration "%s" error: tarantool error`,
+	assert.Equal(suite.T(), fmt.Sprintf(`migration "%s" error: user rollback: eval lua: tarantool error`,
 		migrationId),
 		err.Error())
 	assert.Len(suite.T(), calls, 2)

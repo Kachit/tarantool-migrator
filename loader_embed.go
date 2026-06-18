@@ -2,6 +2,7 @@ package tarantool_migrator
 
 import (
 	"embed"
+	"fmt"
 	"strings"
 )
 
@@ -12,7 +13,7 @@ type EmbedFsLoader struct {
 func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, error) {
 	files, err := fl.fs.ReadDir(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read migrations dir: %w", err)
 	}
 
 	migrations := make(MigrationsCollection, 0)
@@ -25,7 +26,7 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 
 		mgrFile, err := NewMigrationFile(path, file)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parse migration file %q: %w", file.Name(), err)
 		}
 
 		var migration *Migration
@@ -40,7 +41,7 @@ func (fl *EmbedFsLoader) LoadMigrations(path string) (MigrationsCollection, erro
 
 		fileData, err := fl.fs.ReadFile(mgrFile.GetPath())
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("read migration file: %w", err)
 		}
 
 		if mgrFile.GetCmd() == MigrationFileSuffixUp {
