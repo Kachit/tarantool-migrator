@@ -10,8 +10,6 @@ type Options struct {
 	MigrationsSpace string `json:"migrations_space"`
 	// Dry run enabled flag
 	DryRun bool `json:"dry_run"`
-	// Transactions enabled flag
-	TransactionsEnabled bool `json:"transactions_enabled"`
 	// Default mode for read requests
 	ReadMode pool.Mode `json:"read_mode"`
 	// Default mode for read-write requests
@@ -19,8 +17,7 @@ type Options struct {
 }
 
 var DefaultOptions = Options{
-	TransactionsEnabled: true,
-	MigrationsSpace:     "migrations",
-	ReadMode:            pool.ModeAny,
-	WriteMode:           pool.ModeRW,
+	MigrationsSpace: "migrations",
+	ReadMode:        pool.ModeAny,
+	WriteMode:       pool.ModeRW,
 }

@@ -27,7 +27,7 @@ func NewMigrator(tt pool.Pooler, migrations MigrationsCollection, options ...fun
 }
 
 type Migrator struct {
-	ex         *Executor
+	ex         executor
 	opts       *Options
 	logger     *slog.Logger
 	migrations MigrationsCollection
