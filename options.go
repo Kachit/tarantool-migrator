@@ -12,8 +12,10 @@ type Options struct {
 	DryRun bool `json:"dry_run"`
 	// Default mode for read requests
 	ReadMode pool.Mode `json:"read_mode"`
-	// Default mode for read-write requests
+	// Default mode for write requests
 	WriteMode pool.Mode `json:"write_mode"`
+	// Store custom data for migrations
+	MigrationsContainer map[string]any
 }
 
 var DefaultOptions = Options{
