@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/tarantool/go-tarantool/v3"
 	"github.com/tarantool/go-tarantool/v3/pool"
@@ -60,10 +59,9 @@ func (e *executorBase) hasAppliedMigration(ctx context.Context, migrationID stri
 }
 
 func (e *executorBase) insertMigration(ctx context.Context, tt pool.Pooler, migrationID string) error {
-	_, err := tt.Do(tarantool.NewInsertRequest(e.opts.MigrationsSpace).Context(ctx).Tuple([]interface{}{
-		migrationID,
-		time.Now().UTC().Format(time.RFC3339),
-	}),
+	tuple := newMigrationTuple(migrationID)
+
+	_, err := tt.Do(tarantool.NewInsertRequest(e.opts.MigrationsSpace).Context(ctx).Tuple(tuple.ToSlice()),
 		e.opts.WriteMode,
 	).Get()
 	if err != nil {
