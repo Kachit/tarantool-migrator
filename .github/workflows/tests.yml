@@ -28,7 +28,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.8.0
+          version: v2.7.2
 
       - name: Create coverage file
         run: go test -coverprofile='coverage.txt' -covermode=atomic
