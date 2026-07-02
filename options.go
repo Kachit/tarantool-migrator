@@ -15,7 +15,7 @@ type Options struct {
 	// Default mode for write requests
 	WriteMode pool.Mode `json:"write_mode"`
 	// Store custom data for migrations
-	MigrationsContainer map[string]any
+	MigrationsContainer map[string]any `json:"migrations_container"`
 }
 
 var DefaultOptions = Options{

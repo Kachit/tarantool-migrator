@@ -35,23 +35,25 @@ Lua migration file format: `{migration-name}.{migration-cmd}.lua`
 
 ### Migrations as go slice
 **NOTICE**: When migrations built as go slice they order will not change
+
 ```go
 package migrations
 
 import (
-	tarantool_migrator "github.com/kachit/tarantool-migrator"
-	"github.com/tarantool/go-tarantool/v3/pool"
 	"context"
+
+	migrator "github.com/kachit/tarantool-migrator"
+	"github.com/tarantool/go-tarantool/v3/pool"
 )
 
-var Migrations = tarantool_migrator.MigrationsCollection{
-	&tarantool_migrator.Migration{
+var Migrations = migrator.MigrationsCollection{
+	&migrator.Migration{
 		ID: "202410082345_test_migration_1",
-		Migrate: func(ctx context.Context, pooler pool.Pooler, options tarantool_migrator.Options) error {
+		Migrate: func(ctx context.Context, pooler pool.Pooler, options migrator.Options) error {
 			// your migration Up code here
 			return nil
 		},
-		Rollback: func(ctx context.Context, pooler pool.Pooler, options tarantool_migrator.Options) error {
+		Rollback: func(ctx context.Context, pooler pool.Pooler, options migrator.Options) error {
 			// your migration Down code here
 			return nil
 		},
@@ -71,18 +73,20 @@ Example:
 | 202410091201_test_migration_2 | 2024-10-11 20:33:28.3860465 +0000 UTC |
 
 ### Let's connect to tarantool
+
 ```go
 package main
 
 import (
-    "fmt"
-    "time"
 	"context"
+	"fmt"
+	"time"
+
 	"github.com/tarantool/go-tarantool/v3"
 	"github.com/tarantool/go-tarantool/v3/pool"
 )
 
-func main(){
+func main() {
 	// Your tarantool config
 	config := &TarantoolConfig{
 		Host:     "127.0.0.1",
@@ -108,34 +112,38 @@ func main(){
 	if err != nil {
 		panic(err)
 	}
+
+	defer tt.Close()
 }
 ```
 
 ### Let's starting migrate
+
 ```go
 package main
 
 import (
-	"embed"
 	"context"
-	tarantool_migrator "github.com/kachit/tarantool-migrator"
+	"embed"
+
+	migrator "github.com/kachit/tarantool-migrator"
 )
 
 //go:embed migrations
 var LuaFs embed.FS
 
-func main(){
+func main() {
 	ctx := context.Background()
 	// load migrations list from embed
-	fsLoader := tarantool_migrator.NewEmbedFsLoader(LuaFs)
+	fsLoader := migrator.NewEmbedFsLoader(LuaFs)
 	migrations, err := fsLoader.LoadMigrations("migrations")
 	if err != nil {
 		panic(err)
 	}
 
 	// migrate
-	migrator := tarantool_migrator.NewMigrator(tt, migrations)
-	err = migrator.Migrate(ctx)
+	mgr := migrator.NewMigrator(tt, migrations)
+	err = mgr.Migrate(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -143,30 +151,32 @@ func main(){
 ```
 
 ### Let's rollback latest migration
+
 ```go
 package main
 
 import (
-	"embed"
 	"context"
-	tarantool_migrator "github.com/kachit/tarantool-migrator"
+	"embed"
+
+	migrator "github.com/kachit/tarantool-migrator"
 )
 
 //go:embed migrations
 var LuaFs embed.FS
 
-func main(){
+func main() {
 	ctx := context.Background()
 	// load migrations list from embed
-	fsLoader := tarantool_migrator.NewEmbedFsLoader(LuaFs)
+	fsLoader := migrator.NewEmbedFsLoader(LuaFs)
 	migrations, err := fsLoader.LoadMigrations("migrations")
 	if err != nil {
 		panic(err)
 	}
 
 	// rollback last applied migration (202410091201_test_migration_2)
-	migrator := tarantool_migrator.NewMigrator(tt, migrations)
-	err = migrator.RollbackLast(ctx)
+	mgr := migrator.NewMigrator(tt, migrations)
+	err = mgr.RollbackLast(ctx)
 	if err != nil {
 		panic(err)
 	}

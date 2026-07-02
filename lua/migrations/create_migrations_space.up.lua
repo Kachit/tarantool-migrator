@@ -4,3 +4,4 @@ box.schema.create_space('_migrations_space_', { if_not_exists = true, format={
 }})
 
 box.space._migrations_space_:create_index('id', {parts = {'id'}, if_not_exists = true, unique = true})
+box.space._migrations_space_:create_index('executed_at', {parts = {'executed_at'}, if_not_exists = true, unique = false})
